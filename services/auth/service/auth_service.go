@@ -8,6 +8,7 @@ import (
 
 	"posdigi-auth/client"
 	"posdigi-auth/config"
+	"posdigi-auth/dto"
 	"posdigi-auth/repository"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -23,7 +24,7 @@ type AuthService interface {
 
 type authService struct {
 	authRepo   repository.AuthRepository
-	userClient *client.HTTPClient
+	userClient *client.UserClient
 	config     *config.Config
 }
 
@@ -34,8 +35,8 @@ type Claims struct {
 	jwt.MapClaims
 }
 
-// NewAuthService creates a new auth service with HTTP user client
-func NewAuthService(authRepo repository.AuthRepository, userClient *client.HTTPClient, cfg *config.Config) AuthService {
+// NewAuthService creates a new auth service with User client
+func NewAuthService(authRepo repository.AuthRepository, userClient *client.UserClient, cfg *config.Config) AuthService {
 	return &authService{
 		authRepo:   authRepo,
 		userClient: userClient,
@@ -76,7 +77,13 @@ func (s *authService) Register(email, password string) (*repository.AuthUser, er
 	}
 
 	// Create user profile in User Service via HTTP
-	userProfile, err := s.userClient.CreateUserProfile(ctx, email, email) // Using email as full_name initially
+	createUserReq := &dto.CreateUserRequest{
+		Email:    email,
+		FullName: email, // Using email as full_name initially
+		Role:     "user",
+	}
+
+	userProfile, err := s.userClient.CreateUser(ctx, createUserReq)
 	if err != nil {
 		config.Errorf("Error creating user profile: %v", err)
 		// Rollback auth user creation

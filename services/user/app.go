@@ -1,15 +1,12 @@
 package main
 
 import (
-	"os"
-
-	"posdigi-auth/config"
-	"posdigi-auth/database"
-	"posdigi-auth/handler"
-	"posdigi-auth/middleware"
-	"posdigi-auth/repository"
-	"posdigi-auth/service"
-	"posdigi-auth/client"
+	"posdigi-user/config"
+	"posdigi-user/database"
+	"posdigi-user/handler"
+	"posdigi-user/middleware"
+	"posdigi-user/repository"
+	"posdigi-user/service"
 
 	"github.com/labstack/echo/v4"
 	echoSwagger "github.com/swaggo/echo-swagger"
@@ -21,7 +18,7 @@ type App struct {
 	Config      *config.Config
 	Router      *echo.Echo
 	Logger      *logrus.Logger
-	AuthHandler *handler.AuthHandler
+	UserHandler *handler.UserHandler
 }
 
 // Bootstrap initializes the application
@@ -39,33 +36,28 @@ func Bootstrap() (*App, error) {
 	}
 
 	// Auto-migrate database schema
-	if err := db.AutoMigrate(&repository.AuthUser{}); err != nil {
+	if err := db.AutoMigrate(&repository.User{}); err != nil {
 		return nil, err
 	}
 
 	// Initialize layers
-	authRepo := repository.NewAuthRepository(db)
-
-	// Initialize User Service client
-	userServiceURL := getEnv("USER_SERVICE_URL", "http://localhost:8002")
-	userClient := client.NewUserClient(userServiceURL)
-
-	authService := service.NewAuthService(authRepo, userClient, cfg)
-	authHandler := handler.NewAuthHandler(authService)
+	userRepo := repository.NewUserRepository(db)
+	userService := service.NewUserService(userRepo, cfg)
+	userHandler := handler.NewUserHandler(userService)
 
 	// Setup router
-	e := setupRouter(cfg, log, authHandler)
+	e := setupRouter(log, userHandler)
 
 	return &App{
 		Config:      cfg,
 		Router:      e,
 		Logger:      log,
-		AuthHandler: authHandler,
+		UserHandler: userHandler,
 	}, nil
 }
 
 // setupRouter configures the Echo router
-func setupRouter(cfg *config.Config, log *logrus.Logger, authHandler *handler.AuthHandler) *echo.Echo {
+func setupRouter(log *logrus.Logger, userHandler *handler.UserHandler) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
@@ -79,7 +71,7 @@ func setupRouter(cfg *config.Config, log *logrus.Logger, authHandler *handler.Au
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{
 			"status":  "healthy",
-			"service": "auth-service",
+			"service": "user-service",
 		})
 	})
 
@@ -89,22 +81,15 @@ func setupRouter(cfg *config.Config, log *logrus.Logger, authHandler *handler.Au
 	// API routes
 	api := e.Group("/api/v1")
 	{
-		auth := api.Group("/auth")
+		users := api.Group("/users")
 		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
-			auth.POST("/validate", authHandler.ValidateToken)
-			auth.GET("/validate", authHandler.ValidateToken)
+			users.POST("", userHandler.CreateUser)
+			users.GET("", userHandler.ListUsers)
+			users.GET("/:id", userHandler.GetUserByID)
+			users.PUT("/:id", userHandler.UpdateUser)
+			users.DELETE("/:id", userHandler.DeleteUser)
 		}
 	}
 
 	return e
-}
-
-// getEnv retrieves environment variable with fallback
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }

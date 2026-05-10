@@ -33,25 +33,26 @@ func LoadConfig() *Config {
 	)
 
 	return &Config{
-		Port:        getEnv("AUTH_PORT", "8001"),
-		DatabaseURL: getEnv("DATABASE_URL", databaseUrl),
-		JWTSecret:   getEnv("JWT_SECRET", "crabbypatty"),
-		JWTExpiry:   getEnvInt("JWT_EXPIRY", 24),
+		Port:        GetEnv("AUTH_PORT", "8001"),
+		DatabaseURL: GetEnv("DATABASE_URL", databaseUrl),
+		JWTSecret:   GetEnv("JWT_SECRET", "crabbypatty"),
+		JWTExpiry:   GetEnvInt("JWT_EXPIRY", 24),
 	}
 }
 
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func getEnvInt(key string, fallback int) int {
+func GetEnvInt(key string, fallback int) int {
 	if value := os.Getenv(key); value != "" {
 		if intVal, err := strconv.Atoi(value); err == nil {
 			return intVal
 		}
+	}
+	return fallback
+}
+
+// GetEnv retrieves environment variable with fallback (public utility)
+func GetEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
 	return fallback
 }

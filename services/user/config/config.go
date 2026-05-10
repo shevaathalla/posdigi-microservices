@@ -12,14 +12,12 @@ import (
 type Config struct {
 	Port        string
 	DatabaseURL string
-	JWTSecret   string
-	JWTExpiry   int
 }
 
 func LoadConfig() *Config {
 	if err := godotenv.Load(); err != nil {
 		if godotenv.Load("../../.env") != nil {
-			log.Fatalf("No .env file found: %v", err)
+			log.Println("No .env file found, using default values")
 		}
 	}
 
@@ -33,10 +31,8 @@ func LoadConfig() *Config {
 	)
 
 	return &Config{
-		Port:        getEnv("AUTH_PORT", "8001"),
+		Port:        getEnv("USER_PORT", "8002"),
 		DatabaseURL: getEnv("DATABASE_URL", databaseUrl),
-		JWTSecret:   getEnv("JWT_SECRET", "crabbypatty"),
-		JWTExpiry:   getEnvInt("JWT_EXPIRY", 24),
 	}
 }
 
@@ -54,4 +50,9 @@ func getEnvInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+// GetEnv retrieves environment variable with fallback (public utility)
+func GetEnv(key, fallback string) string {
+	return getEnv(key, fallback)
 }
