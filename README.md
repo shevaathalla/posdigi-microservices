@@ -1,196 +1,392 @@
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/golang-migrate/migrate/ci.yaml?branch=master)](https://github.com/golang-migrate/migrate/actions/workflows/ci.yaml?query=branch%3Amaster)
-[![GoDoc](https://pkg.go.dev/badge/github.com/golang-migrate/migrate)](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)
-[![Coverage Status](https://img.shields.io/coveralls/github/golang-migrate/migrate/master.svg)](https://coveralls.io/github/golang-migrate/migrate?branch=master)
-[![packagecloud.io](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/golang-migrate/migrate?filter=debs)
-[![Docker Pulls](https://img.shields.io/docker/pulls/migrate/migrate.svg)](https://hub.docker.com/r/migrate/migrate/)
-![Supported Go Versions](https://img.shields.io/badge/Go-1.22%2C%201.23-lightgrey.svg)
-[![GitHub Release](https://img.shields.io/github/release/golang-migrate/migrate.svg)](https://github.com/golang-migrate/migrate/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/golang-migrate/migrate/v4)](https://goreportcard.com/report/github.com/golang-migrate/migrate/v4)
+# PosDigi Microservices
 
-# migrate
+A microservice backend system for employee attendance with clock-in/clockout functionality. Built with **Golang** using the Echo framework, following clean architecture principles.
 
-__Database migrations written in Go. Use as [CLI](#cli-usage) or import as [library](#use-in-your-go-project).__
+## 🚀 Live Deployment
 
-* Migrate reads migrations from [sources](#migration-sources)
-   and applies them in correct order to a [database](#databases).
-* Drivers are "dumb", migrate glues everything together and makes sure the logic is bulletproof.
-   (Keeps the drivers lightweight, too.)
-* Database drivers don't assume things or try to correct user input. When in doubt, fail.
+**Production URL:** [http://43.156.158.174:8000](http://43.156.158.174:8000)
 
-Forked from [mattes/migrate](https://github.com/mattes/migrate)
+### Access Points
+- **Gateway Service:** http://43.156.158.174:8000
+- **Auth Service:** http://43.156.158.174:8001
+- **User Service:** http://43.156.158.174:8002
+- **Attendance Service:** http://43.156.158.174:8003
 
-## Databases
+### API Documentation
+- **Auth Service:** http://43.156.158.174:8001/docs/index.html
+- **User Service:** http://43.156.158.174:8002/docs/index.html
+- **Attendance Service:** http://43.156.158.174:8003/docs/index.html
 
-Database drivers run migrations. [Add a new database?](database/driver.go)
+## 🏗️ Architecture
 
-* [PostgreSQL](database/postgres)
-* [PGX v4](database/pgx)
-* [PGX v5](database/pgx/v5)
-* [Redshift](database/redshift)
-* [Ql](database/ql)
-* [Cassandra / ScyllaDB](database/cassandra)
-* [SQLite](database/sqlite)
-* [SQLite3](database/sqlite3) ([todo #165](https://github.com/mattes/migrate/issues/165))
-* [SQLCipher](database/sqlcipher)
-* [MySQL / MariaDB](database/mysql)
-* [Neo4j](database/neo4j)
-* [MongoDB](database/mongodb)
-* [CrateDB](database/crate) ([todo #170](https://github.com/mattes/migrate/issues/170))
-* [Shell](database/shell) ([todo #171](https://github.com/mattes/migrate/issues/171))
-* [Google Cloud Spanner](database/spanner)
-* [CockroachDB](database/cockroachdb)
-* [YugabyteDB](database/yugabytedb)
-* [ClickHouse](database/clickhouse)
-* [Firebird](database/firebird)
-* [MS SQL Server](database/sqlserver)
-* [rqlite](database/rqlite)
+```
+Client ──► Gateway (:8000) ──┬──► Auth Service (:8001)
+                             │
+                             ├──► User Service (:8002)
+                             │
+                             └──► Attendance Service (:8003)
+                             └──► Shared Library (Activity Logging)
+```
 
-### Database URLs
+### Service Overview
 
-Database connection strings are specified via URLs. The URL format is driver dependent but generally has the form: `dbdriver://username:password@host:port/dbname?param1=true&param2=false`
+- **Gateway**: Single entry point, rate limiting (in-memory), authentication middleware, reverse proxy routing
+- **Auth Service**: User registration, login, JWT generation/validation, bcrypt password hashing
+- **User Service**: User CRUD operations with pagination, filtering; comprehensive employee profile management
+- **Attendance Service**: Clock-in/clockout, attendance history, work hours calculation
+- **Shared Library**: MongoDB-based activity logging for audit trails across all services
 
-Any [reserved URL characters](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_reserved_characters) need to be escaped. Note, the `%` character also [needs to be escaped](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_the_percent_character)
+## 🛠️ Tech Stack
 
-Explicitly, the following characters need to be escaped:
-`!`, `#`, `$`, `%`, `&`, `'`, `(`, `)`, `*`, `+`, `,`, `/`, `:`, `;`, `=`, `?`, `@`, `[`, `]`
+- **Language:** Go 1.25.0
+- **Framework:** Echo v4.15.2 (high-performance Go web framework)
+- **ORM:** GORM v1.31.1 for PostgreSQL with automated migrations
+- **Authentication:** JWT v5.3.1 with configurable expiry, bcrypt password hashing
+- **Validation:** go-playground/validator v10.30.2 with custom error formatting
+- **Documentation:** Swagger/OpenAPI with echo-swagger v1.5.2
+- **Databases:**
+  - PostgreSQL 15 (users, employees, attendance records)
+  - MongoDB 7.0 (activity logs and audit trails)
+- **Migration Tool:** golang-migrate with SQL files
+- **Containerization:** Multi-stage Docker builds + Docker Compose orchestration
+- **Go Workspace:** Multi-module management with `go.work`
+- **Logging:** logrus v1.9.4 with structured logging
 
-It's easiest to always run the URL parts of your DB connection URL (e.g. username, password, etc) through an URL encoder. See the example Python snippets below:
+## 📋 Prerequisites
+
+- Go 1.25.0 or higher
+- Docker and Docker Compose
+- PostgreSQL 15
+- MongoDB 7.0
+- make (optional, for Makefile commands)
+
+## 🚦 Quick Start
+
+### Using Docker (Recommended)
 
 ```bash
-$ python3 -c 'import urllib.parse; print(urllib.parse.quote(input("String to encode: "), ""))'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$ python2 -c 'import urllib; print urllib.quote(raw_input("String to encode: "), "")'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$
+# Clone the repository
+git clone <repository-url>
+cd posdigi-microservices
+
+# Copy environment file
+cp .env.example .env
+
+# Update environment variables if needed
+# Start all services (including databases)
+make docker-up
+
+# Run database migrations
+make migrate-up
+
+# Access the application
+# Gateway: http://localhost:8000
+# Swagger docs: http://localhost:8001/docs/index.html
 ```
 
-## Migration Sources
-
-Source drivers read migrations from local or remote sources. [Add a new source?](source/driver.go)
-
-* [Filesystem](source/file) - read from filesystem
-* [io/fs](source/iofs) - read from a Go [io/fs](https://pkg.go.dev/io/fs#FS)
-* [Go-Bindata](source/go_bindata) - read from embedded binary data ([jteeuwen/go-bindata](https://github.com/jteeuwen/go-bindata))
-* [pkger](source/pkger) - read from embedded binary data ([markbates/pkger](https://github.com/markbates/pkger))
-* [GitHub](source/github) - read from remote GitHub repositories
-* [GitHub Enterprise](source/github_ee) - read from remote GitHub Enterprise repositories
-* [Bitbucket](source/bitbucket) - read from remote Bitbucket repositories
-* [Gitlab](source/gitlab) - read from remote Gitlab repositories
-* [AWS S3](source/aws_s3) - read from Amazon Web Services S3
-* [Google Cloud Storage](source/google_cloud_storage) - read from Google Cloud Platform Storage
-
-## CLI usage
-
-* Simple wrapper around this library.
-* Handles ctrl+c (SIGINT) gracefully.
-* No config search paths, no config files, no magic ENV var injections.
-
-__[CLI Documentation](cmd/migrate)__
-
-### Basic usage
+### Local Development
 
 ```bash
-$ migrate -source file://path/to/migrations -database postgres://localhost:5432/database up 2
+# Install dependencies
+make install-deps
+
+# Copy environment file
+cp .env.example .env
+
+# Start databases with Docker
+docker-compose up -d postgres mongodb
+
+# Run database migrations
+make migrate-up
+
+# Run individual services
+make run-auth       # Auth service on :8001
+make run-user       # User service on :8002
+make run-attendance # Attendance service on :8003
+make run-gateway    # Gateway service on :8000
+
+# Or run all services at once
+make run-all
 ```
 
-### Docker usage
+## 📚 Common Commands
+
+### Development
 
 ```bash
-$ docker run -v {{ migration dir }}:/migrations --network host migrate/migrate
-    -path=/migrations/ -database postgres://localhost:5432/database up 2
+make run-auth      # Auth service on :8001
+make run-user      # User service on :8002
+make run-attendance # Attendance service on :8003
+make run-gateway   # Gateway service on :8000
+make run-all       # All services in parallel
+make install-deps  # Install dependencies
+make tidy          # Tidy Go modules
 ```
 
-## Use in your Go project
-
-* API is stable and frozen for this release (v3 & v4).
-* Uses [Go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to manage dependencies.
-* To help prevent database corruptions, it supports graceful stops via `GracefulStop chan bool`.
-* Bring your own logger.
-* Uses `io.Reader` streams internally for low memory overhead.
-* Thread-safe and no goroutine leaks.
-
-__[Go Documentation](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)__
-
-```go
-import (
-    "github.com/golang-migrate/migrate/v4"
-    _ "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/github"
-)
-
-func main() {
-    m, err := migrate.New(
-        "github://mattes:personal-access-token@mattes/migrate_test",
-        "postgres://localhost:5432/database?sslmode=enable")
-    m.Steps(2)
-}
-```
-
-Want to use an existing database client?
-
-```go
-import (
-    "database/sql"
-    _ "github.com/lib/pq"
-    "github.com/golang-migrate/migrate/v4"
-    "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/file"
-)
-
-func main() {
-    db, err := sql.Open("postgres", "postgres://localhost:5432/database?sslmode=enable")
-    driver, err := postgres.WithInstance(db, &postgres.Config{})
-    m, err := migrate.NewWithDatabaseInstance(
-        "file:///migrations",
-        "postgres", driver)
-    m.Up() // or m.Steps(2) if you want to explicitly set the number of migrations to run
-}
-```
-
-## Getting started
-
-Go to [getting started](GETTING_STARTED.md)
-
-## Tutorials
-
-* [CockroachDB](database/cockroachdb/TUTORIAL.md)
-* [PostgreSQL](database/postgres/TUTORIAL.md)
-
-(more tutorials to come)
-
-## Migration files
-
-Each migration has an up and down migration. [Why?](FAQ.md#why-two-separate-files-up-and-down-for-a-migration)
+### Docker Operations
 
 ```bash
-1481574547_create_users_table.up.sql
-1481574547_create_users_table.down.sql
+make docker-up      # Start all services
+make docker-down    # Stop all services
+make docker-rebuild # Rebuild images (no cache)
+make docker-logs          # View all logs
+make docker-logs-auth     # View auth service logs
+make docker-logs-user     # View user service logs
+make docker-logs-gateway  # View gateway logs
 ```
 
-[Best practices: How to write migrations.](MIGRATIONS.md)
+### Database Migrations
 
-## Coming from another db migration tool?
+```bash
+make migrate-up        # Run all migrations
+make migrate-down      # Rollback all migrations
+make migrate-down-one  # Rollback last migration
+make migrate-redo      # Redo migrations (down + up)
+make migrate-status    # Check migration status
+make migrate-create NAME=add_table  # Create new migration
+make migrate-fix-dirty # Fix dirty database state
+```
 
-Check out [migradaptor](https://github.com/musinit/migradaptor/).
-*Note: migradaptor is not affiliated or supported by this project*
+### Full Setup
 
-## Versions
+```bash
+make setup  # Complete setup (copies .env, starts docker, runs migrations)
+```
 
-Version | Supported? | Import | Notes
---------|------------|--------|------
-**master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | New features and bug fixes arrive here first |
-**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Used for stable releases |
-**v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
+## 📁 Project Structure
 
-## Development and Contributing
+```
+posdigi-microservices/
+├── services/
+│   ├── auth/           # Authentication service
+│   ├── user/           # User & employee management
+│   ├── attendance/     # Attendance tracking
+│   ├── gateway/        # API Gateway
+│   └── shared/         # Shared libraries
+│       ├── activitylogger/  # MongoDB activity logging
+│       └── mongodb/         # MongoDB client utilities
+├── migrations/         # Database migrations
+├── docker-compose.yml  # Container orchestration
+├── go.work            # Go workspace configuration
+└── Makefile           # Build automation
+```
 
-Yes, please! [`Makefile`](Makefile) is your friend,
-read the [development guide](CONTRIBUTING.md).
+Each service follows clean architecture:
 
-Also have a look at the [FAQ](FAQ.md).
+```
+services/{service-name}/
+├── main.go              # Entry point with Swagger annotations
+├── app.go               # Bootstrap and dependency injection
+├── handler/             # HTTP request handlers (controllers)
+├── service/             # Business logic layer
+├── repository/          # Data access layer
+├── dto/                 # Data Transfer Objects (request/response)
+├── middleware/          # Echo middleware (auth, logging, etc.)
+├── config/              # Configuration and logger setup
+├── database/            # Database initialization
+├── model/               # Database models (GORM structs)
+├── client/              # HTTP clients for inter-service communication
+├── Dockerfile           # Service container definition
+└── go.mod               # Go module definition
+```
 
----
+## ⚙️ Configuration
 
-Looking for alternatives? [https://awesome-go.com/#database](https://awesome-go.com/#database).
+Services use environment variables (see `.env.example`):
+
+```bash
+# PostgreSQL Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=posdigi_microservices
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# MongoDB (Activity Logs)
+MONGODB_HOST=localhost
+MONGODB_PORT=27017
+MONGODB_DATABASE=posdigi_activity_logs
+MONGODB_USERNAME=
+MONGODB_PASSWORD=
+MONGODB_AUTH_DB=admin
+
+# Service Ports
+AUTH_PORT=8001
+USER_PORT=8002
+ATTENDANCE_PORT=8003
+GATEWAY_PORT=8000
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-change-in-production
+JWT_EXPIRY=24
+
+# Internal Service Communication
+INTERNAL_SERVICE_KEY=internal-service-key-change-in-production
+
+# Gateway Rate Limiting
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=1m
+
+# Logging
+LOG_LEVEL=INFO
+ENVIRONMENT=development
+```
+
+## 🔌 API Endpoints
+
+### Gateway Service (:8000)
+- `GET /health` - Aggregated health check
+- `POST /api/v1/auth/*` - Public auth routes (no JWT required)
+- `ANY /api/v1/users/*` - Protected user routes (JWT required)
+- `ANY /api/v1/employees/*` - Protected employee routes (JWT required)
+- `ANY /api/v1/attendance/*` - Protected attendance routes (JWT required)
+
+### Auth Service (:8001)
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/login` - User authentication with JWT
+- `POST /api/v1/auth/validate` - Token validation (POST)
+- `GET /api/v1/auth/validate` - Token validation (GET)
+- `GET /health` - Service health check
+- `GET /docs/*` - Swagger documentation
+
+### User Service (:8002)
+
+**User Endpoints:**
+- `POST /api/v1/users` - Create user
+- `GET /api/v1/users` - List users (paginated, searchable)
+- `GET /api/v1/users/:id` - Get user by ID
+- `GET /api/v1/users/email/:email` - Get user by email (internal)
+- `POST /api/v1/users/authenticate` - Validate credentials (internal)
+- `PUT /api/v1/users/:id` - Update user
+- `DELETE /api/v1/users/:id` - Soft delete user
+
+**Employee Endpoints:**
+- `POST /api/v1/employees` - Create employee profile
+- `GET /api/v1/employees` - List employees (paginated, filterable)
+- `GET /api/v1/employees/:id` - Get employee by ID
+- `GET /api/v1/employees/:id/profile` - Get complete employee profile
+- `PUT /api/v1/employees/:id` - Update employee
+- `DELETE /api/v1/employees/:id` - Soft delete employee
+- `PATCH /api/v1/employees/:id/status` - Update employment status
+- `GET /api/v1/employees/active` - Get all active employees
+- `GET /api/v1/employees/user/:userId` - Get employee by user ID
+- `GET /api/v1/employees/code/:code` - Get employee by code
+- `GET /api/v1/employees/department/:department` - Get by department
+- `GET /api/v1/employees/manager/:managerId/subordinates` - Get subordinates
+
+### Attendance Service (:8003)
+- `POST /api/v1/attendance/clock-in` - Record clock-in
+- `POST /api/v1/attendance/clock-out` - Record clock-out
+- `GET /api/v1/attendance/history/:userId` - Get attendance history (paginated)
+- `GET /api/v1/attendance/summary/:userId` - Get attendance summary by date range
+- `GET /health` - Service health check
+- `GET /docs/*` - Swagger documentation
+
+## 🗄️ Database Schema
+
+### Users Table
+- `id` (UUID, primary key)
+- `email` (VARCHAR, unique, not null)
+- `password` (VARCHAR, bcrypt hashed, not null)
+- `role` (VARCHAR, default 'user')
+- `created_at`, `updated_at` (TIMESTAMP)
+- `deleted_at` (TIMESTAMP, nullable, for soft delete)
+
+### Employees Table
+- `id` (UUID, primary key)
+- `user_id` (UUID, foreign key to users)
+- `employee_code` (VARCHAR, unique)
+- `full_name`, `phone`, `department`, `position`
+- `salary` (DECIMAL)
+- `hire_date` (DATE)
+- `employment_status` (VARCHAR: active/terminated/on_leave/suspended)
+- `manager_id` (UUID, self-referencing for hierarchy)
+- `emergency_contact`, `emergency_phone`, `address`
+- `profile_image` (VARCHAR)
+- `metadata` (JSONB for flexible data)
+- `created_at`, `updated_at`, `deleted_at`
+
+### Attendances Table
+- `id` (UUID, primary key)
+- `user_id` (UUID, foreign key to users)
+- `clock_in` (TIMESTAMP)
+- `clock_out` (TIMESTAMP, nullable)
+- `notes` (TEXT)
+- `created_at`, `updated_at` (TIMESTAMP)
+- `deleted_at` (TIMESTAMP, nullable)
+
+### MongoDB Activity Logs
+- Automatic activity logging across all services
+- Audit trails for user actions
+- Request/response tracking for compliance
+
+## 🔐 Security Features
+
+- **JWT Authentication**: 24-hour token expiry with configurable secret
+- **Password Security**: Bcrypt hashing for secure credential storage
+- **Rate Limiting**: 100 requests/minute at Gateway level
+- **Internal Service Auth**: Shared secret for inter-service communication
+- **CORS Configuration**: Cross-origin request support
+- **Input Validation**: Comprehensive request validation with clear error messages
+- **Request ID Tracking**: Unique identifiers for audit trails
+- **Activity Logging**: MongoDB-based audit logs for all service operations
+
+## 🔄 Development Workflow
+
+1. **Local Development**: Use `make run-{service}` to start services individually
+2. **Testing**: All external requests go through Gateway (`:8000`)
+3. **Documentation**: Access Swagger UI at `http://localhost:{port}/docs/*`
+4. **Health Checks**: Each service has a `/health` endpoint
+5. **Authentication Flow**:
+   - Public routes (register/login) bypass Gateway auth
+   - Protected routes require JWT in `Authorization: Bearer <token>` header
+   - Inter-service communication uses `X-Service-Auth` header
+
+## 🚧 Known Limitations
+
+- No unit or integration tests currently implemented
+- Rate limiting uses in-memory storage (lost on restart)
+- Limited error recovery mechanisms
+- No distributed tracing or advanced monitoring
+- No HTTPS/TLS configuration (requires reverse proxy)
+
+## 🚀 Production Deployment
+
+### Before deploying to production:
+
+1. **Change Security Keys:**
+   ```bash
+   JWT_SECRET=CHANGE_THIS_MINIMUM_32_CHAR_SECRET
+   INTERNAL_SERVICE_KEY=CHANGE_THIS_MINIMUM_24_CHAR_SECRET
+   ```
+
+2. **Use Production Environment File:**
+   ```bash
+   cp .env.production.example .env
+   # Update all production values
+   ```
+
+3. **Database Configuration:**
+   - Configure PostgreSQL connection pooling
+   - Set up MongoDB replica sets for high availability
+   - Use strong database passwords
+
+4. **Infrastructure:**
+   - Use HTTPS/TLS termination (nginx, traefik, etc.)
+   - Configure proper firewall rules
+   - Set up monitoring and alerting
+   - Implement log aggregation (ELK, Loki, etc.)
+   - Consider Redis for distributed rate limiting
+
+5. **Health Monitoring:**
+   - Monitor `/health` endpoints
+   - Set up alerts for service failures
+   - Track MongoDB and PostgreSQL performance
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👥 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
