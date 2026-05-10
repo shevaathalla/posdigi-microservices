@@ -3,16 +3,22 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"posdigi-user/config"
 	"posdigi-user/dto"
 	"posdigi-user/repository"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
 	CreateUser(req *dto.CreateUserRequest) (*repository.User, error)
 	GetUserByID(userID string) (*repository.User, error)
+	GetUserByEmail(email string) (*repository.User, error)
+	AuthenticateUser(email, password string) (*repository.User, error)
 	UpdateUser(userID string, req *dto.UpdateUserRequest) (*repository.User, error)
 	DeleteUser(userID string) error
 	ListUsers(req *dto.ListUsersRequest) (*dto.ListUsersResponse, error)
@@ -31,33 +37,52 @@ func NewUserService(userRepo repository.UserRepository, cfg *config.Config) User
 	}
 }
 
-// CreateUser creates a new user profile
+// CreateUser creates a new user profile with hashed password
 func (s *userService) CreateUser(req *dto.CreateUserRequest) (*repository.User, error) {
 	config.Debug("Creating new user: " + req.Email)
 
-	// Check if user already exists
+	// Check if user already exists (including soft-deleted records which still
+	// hold the unique email constraint in the DB)
 	existingUser, err := s.userRepo.FindByEmail(req.Email)
 	if err != nil {
 		config.Errorf("Database error checking existing user: %v", err)
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-
 	if existingUser != nil {
 		config.Warn("User already exists: " + req.Email)
 		return nil, errors.New("user already exists")
 	}
 
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		config.Errorf("Error hashing password: %v", err)
+		return nil, fmt.Errorf("error hashing password: %w", err)
+	}
+
+	// Set default role
+	role := req.Role
+	if role == "" {
+		role = "user"
+	}
+
 	// Create new user
 	user := &repository.User{
+		ID:        uuid.NewString(),
 		Email:     req.Email,
+		Password:  string(hashedPassword),
 		FullName:  req.FullName,
-		Role:      req.Role,
+		Role:      role,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
 		config.Errorf("Error creating user: %v", err)
+		// Catch DB-level duplicate key (e.g. soft-deleted user with same email)
+		if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "duplicate key") {
+			return nil, errors.New("user already exists")
+		}
 		return nil, fmt.Errorf("error creating user: %w", err)
 	}
 
@@ -83,11 +108,53 @@ func (s *userService) GetUserByID(userID string) (*repository.User, error) {
 	return user, nil
 }
 
+// GetUserByEmail retrieves a user by email
+func (s *userService) GetUserByEmail(email string) (*repository.User, error) {
+	config.Debug("Getting user by email: " + email)
+
+	user, err := s.userRepo.FindByEmail(email)
+	if err != nil {
+		config.Errorf("Database error finding user by email: %v", err)
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	if user == nil {
+		config.Warn("User not found by email: " + email)
+		return nil, errors.New("user not found")
+	}
+
+	return user, nil
+}
+
+// AuthenticateUser validates email + password credentials
+func (s *userService) AuthenticateUser(email, password string) (*repository.User, error) {
+	config.Debug("Authenticating user: " + email)
+
+	user, err := s.userRepo.FindByEmail(email)
+	if err != nil {
+		config.Errorf("Database error finding user: %v", err)
+		return nil, errors.New("invalid credentials")
+	}
+
+	if user == nil {
+		config.Warn("Authentication failed - user not found: " + email)
+		return nil, errors.New("invalid credentials")
+	}
+
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		config.Warn("Authentication failed - invalid password for: " + email)
+		return nil, errors.New("invalid credentials")
+	}
+
+	config.Info("User authenticated successfully: " + email)
+	return user, nil
+}
+
 // UpdateUser updates a user profile
 func (s *userService) UpdateUser(userID string, req *dto.UpdateUserRequest) (*repository.User, error) {
 	config.Debug("Updating user: " + userID)
 
-	// Find existing user
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		config.Errorf("Database error finding user: %v", err)
@@ -99,7 +166,6 @@ func (s *userService) UpdateUser(userID string, req *dto.UpdateUserRequest) (*re
 		return nil, errors.New("user not found")
 	}
 
-	// Update fields if provided
 	if req.FullName != "" {
 		user.FullName = req.FullName
 	}
@@ -124,7 +190,6 @@ func (s *userService) UpdateUser(userID string, req *dto.UpdateUserRequest) (*re
 func (s *userService) DeleteUser(userID string) error {
 	config.Debug("Deleting user: " + userID)
 
-	// Check if user exists
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		config.Errorf("Database error finding user: %v", err)
@@ -149,35 +214,27 @@ func (s *userService) DeleteUser(userID string) error {
 func (s *userService) ListUsers(req *dto.ListUsersRequest) (*dto.ListUsersResponse, error) {
 	config.Debug("Listing users")
 
-	// Mock data for now - implement proper pagination in repository
-	mockUsers := []*repository.User{
-		{
-			ID:       "1",
-			Email:    "user1@example.com",
-			FullName: "User One",
-			Role:     "user",
-		},
-		{
-			ID:       "2",
-			Email:    "user2@example.com",
-			FullName: "User Two",
-			Role:     "admin",
-		},
+	users, total, err := s.userRepo.List(req.Page, req.Limit, req.Search)
+	if err != nil {
+		config.Errorf("Error listing users: %v", err)
+		return nil, fmt.Errorf("error listing users: %w", err)
 	}
 
-	userResponses := make([]dto.UserResponse, 0, len(mockUsers))
-	for _, user := range mockUsers {
+	userResponses := make([]dto.UserResponse, 0, len(users))
+	for _, user := range users {
 		userResponses = append(userResponses, dto.UserResponse{
-			ID:       user.ID,
-			Email:    user.Email,
-			FullName: user.FullName,
-			Role:     user.Role,
+			ID:        user.ID,
+			Email:     user.Email,
+			FullName:  user.FullName,
+			Role:      user.Role,
+			CreatedAt: user.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: user.UpdatedAt.Format(time.RFC3339),
 		})
 	}
 
 	return &dto.ListUsersResponse{
 		Users: userResponses,
-		Total: len(mockUsers),
+		Total: total,
 		Page:  req.Page,
 		Limit: req.Limit,
 	}, nil

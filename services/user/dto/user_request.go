@@ -8,6 +8,7 @@ import (
 // CreateUserRequest represents a request to create a user
 type CreateUserRequest struct {
 	Email    string `json:"email"`
+	Password string `json:"password"`
 	FullName string `json:"full_name"`
 	Role     string `json:"role,omitempty"`
 }
@@ -60,4 +61,10 @@ func (r *ListUsersRequest) Validate() error {
 		r.Limit = 100
 	}
 	return nil
+}
+
+// AuthenticateUserRequest represents an authentication request from the auth service
+type AuthenticateUserRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }

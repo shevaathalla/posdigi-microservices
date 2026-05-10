@@ -56,10 +56,16 @@ func (h *AuthHandler) Register(c echo.Context) error {
 
 	userProfile, token, err := h.authService.Register(req.Email, req.Password, req.EmployeeData)
 	if err != nil {
-		if strings.Contains(err.Error(), "already exists") {
+		errMsg := err.Error()
+		config.Warn("Register failed for " + req.Email + ": " + errMsg)
+		switch {
+		case strings.Contains(errMsg, "already exists"):
 			return c.JSON(http.StatusConflict, dto.NewErrorResponse("User already exists"))
+		case strings.Contains(errMsg, "service unavailable"), strings.Contains(errMsg, "upstream service"):
+			return c.JSON(http.StatusServiceUnavailable, dto.NewErrorResponse("Service temporarily unavailable, please try again later"))
+		default:
+			return c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Registration failed"))
 		}
-		return c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Internal server error"))
 	}
 
 	userResponse := dto.NewUserResponse(userProfile.ID, userProfile.Email, userProfile.Role)
@@ -97,7 +103,16 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 	userProfile, token, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, dto.NewErrorResponse("Invalid credentials"))
+		errMsg := err.Error()
+		config.Warn("Login failed for " + req.Email + ": " + errMsg)
+		switch {
+		case strings.Contains(errMsg, "invalid credentials"):
+			return c.JSON(http.StatusUnauthorized, dto.NewErrorResponse("Invalid email or password"))
+		case strings.Contains(errMsg, "service unavailable"), strings.Contains(errMsg, "upstream service"):
+			return c.JSON(http.StatusServiceUnavailable, dto.NewErrorResponse("Service temporarily unavailable, please try again later"))
+		default:
+			return c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Login failed"))
+		}
 	}
 
 	userResponse := dto.NewUserResponse(userProfile.ID, userProfile.Email, userProfile.Role)

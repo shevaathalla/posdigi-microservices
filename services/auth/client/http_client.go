@@ -30,8 +30,18 @@ func NewHTTPClient(baseURL string) *HTTPClient {
 	}
 }
 
-// post sends a POST request to the user service
+// post sends a POST request expecting 201 Created (used for resource creation)
 func (c *HTTPClient) post(ctx context.Context, path string, body interface{}, response interface{}) error {
+	return c.postWithStatus(ctx, path, body, http.StatusCreated, response)
+}
+
+// postOK sends a POST request expecting 200 OK (used for actions like authenticate)
+func (c *HTTPClient) postOK(ctx context.Context, path string, body interface{}, response interface{}) error {
+	return c.postWithStatus(ctx, path, body, http.StatusOK, response)
+}
+
+// postWithStatus sends a POST request with a configurable expected status
+func (c *HTTPClient) postWithStatus(ctx context.Context, path string, body interface{}, expectedStatus int, response interface{}) error {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
@@ -46,7 +56,7 @@ func (c *HTTPClient) post(ctx context.Context, path string, body interface{}, re
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Service-Auth", c.serviceKey)
 
-	return c.do(req, http.StatusCreated, response)
+	return c.do(req, expectedStatus, response)
 }
 
 // get sends a GET request to the user service
@@ -77,50 +87,62 @@ func (c *HTTPClient) delete(ctx context.Context, path string, response interface
 	return c.do(req, http.StatusOK, response)
 }
 
+// serviceError holds a parsed error message from a downstream service response
+type serviceError struct {
+	Message string `json:"message"`
+}
+
 // do executes the HTTP request and handles the response
 func (c *HTTPClient) do(req *http.Request, expectedStatus int, response interface{}) error {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
+		// Don't expose internal network details — log them, return a clean error
+		config.Errorf("HTTP request to %s failed: %v", req.URL.Path, err)
+		return fmt.Errorf("service unavailable")
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != expectedStatus {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
-	}
-
-	// Parse the response wrapper
-	var wrapper struct {
-		Success bool `json:"success"`
-		Data    any  `json:"data"`
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response: %w", err)
+		return fmt.Errorf("failed to read response body")
+	}
+
+	// Non-2xx / unexpected status: extract message from downstream JSON if possible
+	if resp.StatusCode != expectedStatus {
+		var errResp serviceError
+		if jsonErr := json.Unmarshal(body, &errResp); jsonErr == nil && errResp.Message != "" {
+			return fmt.Errorf("%s", errResp.Message)
+		}
+		// Fallback: just report the status code without leaking raw body
+		config.Errorf("Unexpected status %d from %s: %s", resp.StatusCode, req.URL.Path, string(body))
+		return fmt.Errorf("upstream service returned status %d", resp.StatusCode)
+	}
+
+	// Parse the standard response wrapper { "success": bool, "data": {...} }
+	var wrapper struct {
+		Success bool            `json:"success"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data"`
 	}
 
 	if err := json.Unmarshal(body, &wrapper); err != nil {
-		return fmt.Errorf("failed to decode wrapper: %w", err)
+		config.Errorf("Failed to decode wrapper from %s: %v", req.URL.Path, err)
+		return fmt.Errorf("invalid response from upstream service")
 	}
 
 	if !wrapper.Success {
-		return fmt.Errorf("unsuccessful response")
+		if wrapper.Message != "" {
+			return fmt.Errorf("%s", wrapper.Message)
+		}
+		return fmt.Errorf("upstream service returned an unsuccessful response")
 	}
 
-	// Extract the actual data
-	dataWrapper := map[string]interface{}{
-		"Data": wrapper.Data,
-	}
-
-	dataBytes, err := json.Marshal(dataWrapper)
-	if err != nil {
-		return fmt.Errorf("failed to remarshal data: %w", err)
-	}
-
-	if err := json.Unmarshal(dataBytes, response); err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
+	// Decode the inner data directly into the target struct
+	if response != nil && len(wrapper.Data) > 0 {
+		if err := json.Unmarshal(wrapper.Data, response); err != nil {
+			config.Errorf("Failed to decode data from %s: %v", req.URL.Path, err)
+			return fmt.Errorf("failed to decode upstream response data")
+		}
 	}
 
 	return nil

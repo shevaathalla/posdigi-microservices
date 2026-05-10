@@ -64,7 +64,7 @@ func (c *UserClient) AuthenticateUser(ctx context.Context, email, password strin
 	}
 
 	var response dto.UserProfileResponse
-	if err := c.httpClient.post(ctx, "/api/v1/users/authenticate", requestBody, &response); err != nil {
+	if err := c.httpClient.postOK(ctx, "/api/v1/users/authenticate", requestBody, &response); err != nil {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 

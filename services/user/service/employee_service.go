@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"posdigi-user/dto"
 	"posdigi-user/model"
 	"posdigi-user/repository"
 )
@@ -22,38 +23,8 @@ func NewEmployeeService(employeeRepo *repository.EmployeeRepository, userRepo re
 	}
 }
 
-// CreateEmployeeRequest represents the request to create a new employee
-type CreateEmployeeRequest struct {
-	UserID           string  `json:"user_id" binding:"required"`
-	FullName         string  `json:"full_name" binding:"required,min=2,max=100"`
-	Phone            string  `json:"phone" binding:"omitempty,max=20"`
-	Department       string  `json:"department" binding:"omitempty,max=50"`
-	Position         string  `json:"position" binding:"omitempty,max=50"`
-	Salary           float64 `json:"salary" binding:"omitempty,min=0"`
-	HireDate         string  `json:"hire_date" binding:"required"`
-	EmploymentStatus string  `json:"employment_status" binding:"omitempty,oneof=active terminated on_leave suspended"`
-	ManagerID        *string `json:"manager_id,omitempty"`
-	EmergencyContact string  `json:"emergency_contact" binding:"omitempty,max=100"`
-	EmergencyPhone   string  `json:"emergency_phone" binding:"omitempty,max=20"`
-	Address          string  `json:"address" binding:"omitempty,max=500"`
-}
-
-// UpdateEmployeeRequest represents the request to update an employee
-type UpdateEmployeeRequest struct {
-	FullName         *string  `json:"full_name,omitempty"`
-	Phone            *string  `json:"phone,omitempty"`
-	Department       *string  `json:"department,omitempty"`
-	Position         *string  `json:"position,omitempty"`
-	Salary           *float64 `json:"salary,omitempty"`
-	EmploymentStatus *string  `json:"employment_status,omitempty"`
-	ManagerID        *string  `json:"manager_id,omitempty"`
-	EmergencyContact *string  `json:"emergency_contact,omitempty"`
-	EmergencyPhone   *string  `json:"emergency_phone,omitempty"`
-	Address          *string  `json:"address,omitempty"`
-}
-
 // CreateEmployee creates a new employee profile
-func (s *EmployeeService) CreateEmployee(req *CreateEmployeeRequest) (*model.Employee, error) {
+func (s *EmployeeService) CreateEmployee(req *dto.CreateEmployeeRequest) (*model.Employee, error) {
 	// Validate user exists
 	user, err := s.userRepo.FindByID(req.UserID)
 	if err != nil || user == nil {
@@ -69,11 +40,14 @@ func (s *EmployeeService) CreateEmployee(req *CreateEmployeeRequest) (*model.Emp
 		return nil, errors.New("employee profile already exists for this user")
 	}
 
-	// Validate manager exists if provided
+	// Validate manager exists if provided — non-blocking: if manager doesn't
+	// exist yet (e.g. bootstrapping), we still create the employee and store
+	// the manager_id. It can be corrected later via UpdateEmployee.
 	if req.ManagerID != nil && *req.ManagerID != "" {
 		_, err := s.employeeRepo.GetByID(*req.ManagerID)
 		if err != nil {
-			return nil, errors.New("manager not found")
+			// Manager not found — clear the manager_id instead of failing
+			req.ManagerID = nil
 		}
 	}
 
@@ -161,7 +135,7 @@ func (s *EmployeeService) ListEmployees(page, pageSize int, search string) ([]mo
 }
 
 // UpdateEmployee updates an employee profile
-func (s *EmployeeService) UpdateEmployee(id string, req *UpdateEmployeeRequest) (*model.Employee, error) {
+func (s *EmployeeService) UpdateEmployee(id string, req *dto.UpdateEmployeeRequest) (*model.Employee, error) {
 	// Get existing employee
 	employee, err := s.employeeRepo.GetByID(id)
 	if err != nil {

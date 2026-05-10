@@ -46,6 +46,10 @@ func setupAPIRoutes(e *echo.Echo, userHandler *handler.UserHandler, employeeHand
 		{
 			users.POST("", userHandler.CreateUser)
 			users.GET("", userHandler.ListUsers)
+			// Static sub-paths MUST come before /:id to avoid route conflicts
+			users.GET("/email/:email", userHandler.GetUserByEmail)
+			users.POST("/authenticate", userHandler.AuthenticateUser)
+			// Wildcard param routes last
 			users.GET("/:id", userHandler.GetUserByID)
 			users.PUT("/:id", userHandler.UpdateUser)
 			users.DELETE("/:id", userHandler.DeleteUser)

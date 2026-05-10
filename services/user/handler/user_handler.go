@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"posdigi-user/config"
@@ -102,6 +103,64 @@ func (h *UserHandler) GetUserByID(c echo.Context) error {
 	)
 
 	return c.JSON(http.StatusOK, dto.NewSuccessResponse("User retrieved successfully", userResponse))
+}
+
+// GetUserByEmail handles getting a user by email (used by internal services)
+func (h *UserHandler) GetUserByEmail(c echo.Context) error {
+	email := c.Param("email")
+	if email == "" {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Email is required"))
+	}
+
+	user, err := h.userService.GetUserByEmail(email)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return c.JSON(http.StatusNotFound, dto.NewErrorResponse("User not found"))
+		}
+		return c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Internal server error"))
+	}
+
+	userResponse := dto.NewUserResponse(
+		user.ID,
+		user.Email,
+		user.FullName,
+		user.Role,
+		user.CreatedAt.Format(time.RFC3339),
+		user.UpdatedAt.Format(time.RFC3339),
+	)
+
+	return c.JSON(http.StatusOK, dto.NewSuccessResponse("User retrieved successfully", userResponse))
+}
+
+// AuthenticateUser validates email + password and returns user profile (used by auth service)
+func (h *UserHandler) AuthenticateUser(c echo.Context) error {
+	var req dto.AuthenticateUserRequest
+	if err := c.Bind(&req); err != nil {
+		config.Warn("Invalid request body for authentication")
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
+	}
+
+	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Email and password are required"))
+	}
+
+	user, err := h.userService.AuthenticateUser(req.Email, req.Password)
+	if err != nil {
+		config.Warn("Authentication failed for: " + req.Email)
+		return c.JSON(http.StatusUnauthorized, dto.NewErrorResponse("Invalid credentials"))
+	}
+
+	userResponse := dto.NewUserResponse(
+		user.ID,
+		user.Email,
+		user.FullName,
+		user.Role,
+		user.CreatedAt.Format(time.RFC3339),
+		user.UpdatedAt.Format(time.RFC3339),
+	)
+
+	config.Info("User authenticated: " + user.Email)
+	return c.JSON(http.StatusOK, dto.NewSuccessResponse("Authentication successful", userResponse))
 }
 
 // UpdateUser handles updating a user

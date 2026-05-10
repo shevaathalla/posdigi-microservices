@@ -29,6 +29,10 @@ func NewServiceClient(baseURL string, serviceKey string, logger *logrus.Logger) 
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 100,
 				IdleConnTimeout:     90 * time.Second,
+				// Disable auto-compression: the gateway is a transparent proxy.
+				// Backends should return plain JSON; the gateway's own Gzip middleware
+				// handles compression for the final client response.
+				DisableCompression: true,
 			},
 		},
 	}

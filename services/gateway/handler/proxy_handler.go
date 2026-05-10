@@ -83,18 +83,21 @@ func (ph *ProxyHandler) proxyRequest(c echo.Context, serviceClient *client.Servi
 		})
 	}
 
-	// Set response headers
+	// Set response headers (hop-by-hop headers already excluded above)
 	for key, value := range respHeaders {
 		if !isHopByHopHeader(key) {
 			c.Response().Header().Set(key, value)
 		}
 	}
 
-	// Set status code and write response body
-	c.Response().WriteHeader(statusCode)
-	c.Response().Write(respBody)
+	// Determine content type from backend response
+	contentType := respHeaders["Content-Type"]
+	if contentType == "" {
+		contentType = "application/json"
+	}
 
-	return nil
+	// Write response using Echo's Blob — respects middleware chain properly
+	return c.Blob(statusCode, contentType, respBody)
 }
 
 // isHopByHopHeader checks if a header is hop-by-hop (should not be forwarded)
@@ -108,6 +111,10 @@ func isHopByHopHeader(header string) bool {
 		"Trailers",
 		"Transfer-Encoding",
 		"Upgrade",
+		// Strip encoding/length headers — the gateway re-encodes via its own Gzip
+		// middleware, so forwarding these from backends causes double-encoding bugs
+		"Content-Encoding",
+		"Content-Length",
 	}
 
 	header = strings.ToLower(header)

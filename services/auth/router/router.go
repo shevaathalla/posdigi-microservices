@@ -16,7 +16,8 @@ func Setup(log *logrus.Logger, authHandler *handler.AuthHandler) *echo.Echo {
 	// Middleware
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-	e.Use(middleware.Gzip())
+	// No Gzip — this service sits behind the gateway; individual services should
+	// not compress since it causes double-encoding when proxied
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger(log))
 

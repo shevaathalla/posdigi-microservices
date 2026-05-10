@@ -15,7 +15,9 @@ func SetupMiddleware(e *echo.Echo, cfg *config.Config, log *logrus.Logger) {
 	// Global middleware
 	e.Use(Recover())
 	e.Use(CORS())
-	e.Use(Gzip())
+	// NOTE: No Gzip here — the gateway is a transparent reverse proxy.
+	// Adding Gzip corrupts forwarded response bodies because WriteHeader is
+	// called before the middleware can inject Content-Encoding: gzip.
 	e.Use(RequestID())
 	e.Use(Logger(log))
 	e.Use(RateLimitMiddleware(rateLimiter, log))
