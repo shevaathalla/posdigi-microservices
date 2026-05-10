@@ -4,7 +4,6 @@ import (
 	"posdigi-attendance/config"
 	"posdigi-attendance/database"
 	"posdigi-attendance/handler"
-	"posdigi-attendance/model"
 	"posdigi-attendance/repository"
 	"posdigi-attendance/router"
 	"posdigi-attendance/service"
@@ -35,18 +34,13 @@ func Bootstrap() (*App, error) {
 		return nil, err
 	}
 
-	// Auto-migrate database schema
-	if err := db.AutoMigrate(&model.Attendance{}); err != nil {
-		return nil, err
-	}
-
 	// Initialize layers
 	attendanceRepo := repository.NewAttendanceRepository(db)
 	attendanceService := service.NewAttendanceService(attendanceRepo, cfg)
 	attendanceHandler := handler.NewAttendanceHandler(attendanceService)
 
-	// Setup router
-	e := router.Setup(log, attendanceHandler)
+	// Setup router with internal service authentication
+	e := router.Setup(log, attendanceHandler, cfg.InternalServiceKey)
 
 	return &App{
 		Config:            cfg,

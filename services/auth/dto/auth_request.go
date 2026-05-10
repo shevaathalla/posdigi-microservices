@@ -7,8 +7,24 @@ import (
 
 // RegisterRequest represents a user registration request
 type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email        string                `json:"email"`
+	Password     string                `json:"password"`
+	EmployeeData *EmployeeDataRequest  `json:"employee_data,omitempty"`
+}
+
+// EmployeeDataRequest represents employee profile data during registration
+type EmployeeDataRequest struct {
+	FullName         string  `json:"full_name,omitempty"`
+	Phone            string  `json:"phone,omitempty"`
+	Department       string  `json:"department,omitempty"`
+	Position         string  `json:"position,omitempty"`
+	Salary           float64 `json:"salary,omitempty"`
+	HireDate         string  `json:"hire_date,omitempty"`
+	EmploymentStatus string  `json:"employment_status,omitempty"`
+	ManagerID        *string `json:"manager_id,omitempty"`
+	EmergencyContact string  `json:"emergency_contact,omitempty"`
+	EmergencyPhone   string  `json:"emergency_phone,omitempty"`
+	Address          string  `json:"address,omitempty"`
 }
 
 // LoginRequest represents a user login request

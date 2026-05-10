@@ -16,22 +16,22 @@ help: ## Display this help message
 .PHONY: run-auth
 run-auth: ## Run auth service locally
 	@echo "Starting Auth Service on port $(AUTH_PORT)..."
-	@cd services/auth && go run main.go
+	@cd services/auth && go run main.go app.go
 
 .PHONY: run-user
 run-user: ## Run user service locally
 	@echo "Starting User Service on port $(USER_PORT)..."
-	@cd services/user && go run main.go
+	@cd services/user && go run main.go app.go
 
 .PHONY: run-attendance
 run-attendance: ## Run attendance service locally
 	@echo "Starting Attendance Service on port $(ATTENDANCE_PORT)..."
-	@cd services/attendance && go run main.go
+	@cd services/attendance && go run .
 
 .PHONY: run-gateway
 run-gateway: ## Run gateway service locally
 	@echo "Starting Gateway Service on port $(GATEWAY_PORT)..."
-	@cd services/gateway && go run main.go
+	@cd services/gateway && go build -o gateway.exe main.go app.go && ./gateway.exe
 
 .PHONY: run-all
 run-all: ## Run all services locally (in background)

@@ -1,10 +1,17 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type User struct {
-	gorm.Model
-	ID       string `gorm:"type:uuid;default:uuid_generate_v4();primaryKey" json:"id"`
-	Email    string `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
-	Password string `gorm:"type:varchar(255);not null" json:"-"`
+	ID        string    `gorm:"type:uuid;default:uuid_generate_v4();primaryKey" json:"id"`
+	Email     string    `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+	Password  string    `gorm:"type:varchar(255);not null" json:"-"`
+	Role      string    `gorm:"type:varchar(50);default:'user'" json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }

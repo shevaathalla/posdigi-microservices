@@ -63,6 +63,20 @@ func (c *HTTPClient) get(ctx context.Context, path string, response interface{})
 	return c.do(req, http.StatusOK, response)
 }
 
+// delete sends a DELETE request to the user service
+func (c *HTTPClient) delete(ctx context.Context, path string, response interface{}) error {
+	url := c.baseURL + path
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Service-Auth", c.serviceKey)
+
+	return c.do(req, http.StatusOK, response)
+}
+
 // do executes the HTTP request and handles the response
 func (c *HTTPClient) do(req *http.Request, expectedStatus int, response interface{}) error {
 	resp, err := c.httpClient.Do(req)

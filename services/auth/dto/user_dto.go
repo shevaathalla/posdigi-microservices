@@ -3,6 +3,7 @@ package dto
 // CreateUserRequest represents a request to create a user profile
 type CreateUserRequest struct {
 	Email    string `json:"email"`
+	Password string `json:"password"`
 	FullName string `json:"full_name"`
 	Role     string `json:"role"`
 }

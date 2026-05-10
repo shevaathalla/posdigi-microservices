@@ -10,13 +10,11 @@ import (
 )
 
 // Setup configures the Echo router with all routes and middleware
-func Setup(log *logrus.Logger, attendanceHandler *handler.AttendanceHandler) *echo.Echo {
+func Setup(log *logrus.Logger, attendanceHandler *handler.AttendanceHandler, internalServiceKey string) *echo.Echo {
 	e := echo.New()
 
-	// Middleware
+	// Essential middleware only (no CORS/Gzip - Gateway handles those)
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
-	e.Use(middleware.Gzip())
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger(log))
 
@@ -31,15 +29,17 @@ func Setup(log *logrus.Logger, attendanceHandler *handler.AttendanceHandler) *ec
 	// Swagger documentation
 	e.GET("/docs/*", echoSwagger.WrapHandler)
 
-	// API routes
-	setupAPIRoutes(e, attendanceHandler)
+	// API routes with internal service authentication
+	setupAPIRoutes(e, attendanceHandler, internalServiceKey, log)
 
 	return e
 }
 
 // setupAPIRoutes configures API v1 routes
-func setupAPIRoutes(e *echo.Echo, attendanceHandler *handler.AttendanceHandler) {
+func setupAPIRoutes(e *echo.Echo, attendanceHandler *handler.AttendanceHandler, internalServiceKey string, log *logrus.Logger) {
 	api := e.Group("/api/v1")
+	// Apply internal service authentication to all API routes
+	api.Use(middleware.InternalServiceAuth(internalServiceKey, log))
 	{
 		attendance := api.Group("/attendance")
 		{

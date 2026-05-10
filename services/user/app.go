@@ -34,18 +34,18 @@ func Bootstrap() (*App, error) {
 		return nil, err
 	}
 
-	// Auto-migrate database schema
-	if err := db.AutoMigrate(&repository.User{}); err != nil {
-		return nil, err
-	}
-
 	// Initialize layers
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo, cfg)
 	userHandler := handler.NewUserHandler(userService)
 
-	// Setup router
-	e := router.Setup(log, userHandler)
+	// Initialize employee layers
+	employeeRepo := repository.NewEmployeeRepository(db)
+	employeeService := service.NewEmployeeService(employeeRepo, userRepo)
+	employeeHandler := handler.NewEmployeeHandler(employeeService, log)
+
+	// Setup router with internal service authentication
+	e := router.Setup(log, userHandler, employeeHandler, cfg.InternalServiceKey)
 
 	return &App{
 		Config:      cfg,

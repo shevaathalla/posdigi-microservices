@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: posdigi-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: attendance_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - posdigi-network
+
+  auth-service:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    container_name: posdigi-auth
+    ports:
+      - "8001:8001"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: root
+      DB_NAME: attendance_db
+      AUTH_PORT: 8001
+      JWT_SECRET: crabbypatty
+      JWT_EXPIRY_HOURS: 24
+      INTERNAL_SERVICE_KEY: superpowers
+      LOG_LEVEL: INFO
+      ENVIRONMENT: development
+    depends_on:
+      - postgres
+    networks:
+      - posdigi-network
+
+  user-service:
+    build:
+      context: ./services/user
+      dockerfile: Dockerfile
+    container_name: posdigi-user
+    ports:
+      - "8002:8002"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: root
+      DB_NAME: attendance_db
+      USER_PORT: 8002
+      JWT_SECRET: crabbypatty
+      INTERNAL_SERVICE_KEY: superpowers
+      LOG_LEVEL: INFO
+      ENVIRONMENT: development
+    depends_on:
+      - postgres
+    networks:
+      - posdigi-network
+
+  attendance-service:
+    build:
+      context: ./services/attendance
+      dockerfile: Dockerfile
+    container_name: posdigi-attendance
+    ports:
+      - "8003:8003"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: root
+      DB_NAME: attendance_db
+      ATTENDANCE_PORT: 8003
+      JWT_SECRET: crabbypatty
+      INTERNAL_SERVICE_KEY: superpowers
+      LOG_LEVEL: INFO
+      ENVIRONMENT: development
+    depends_on:
+      - postgres
+    networks:
+      - posdigi-network
+
+  gateway-service:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: posdigi-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      GATEWAY_PORT: 8000
+      AUTH_SERVICE_URL: http://auth-service:8001
+      USER_SERVICE_URL: http://user-service:8002
+      ATTENDANCE_SERVICE_URL: http://attendance-service:8003
+      JWT_SECRET: crabbypatty
+      RATE_LIMIT_REQUESTS: 100
+      RATE_LIMIT_WINDOW: 1m
+      INTERNAL_SERVICE_KEY: superpowers
+      LOG_LEVEL: INFO
+      ENVIRONMENT: development
+    depends_on:
+      - auth-service
+      - user-service
+      - attendance-service
+    networks:
+      - posdigi-network
+
+volumes:
+  postgres_data:
+
+networks:
+  posdigi-network:
+    driver: bridge

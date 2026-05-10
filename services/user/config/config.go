@@ -10,8 +10,9 @@ import (
 )
 
 type Config struct {
-	Port        string
-	DatabaseURL string
+	Port               string
+	DatabaseURL        string
+	InternalServiceKey string
 }
 
 func LoadConfig() *Config {
@@ -31,8 +32,9 @@ func LoadConfig() *Config {
 	)
 
 	return &Config{
-		Port:        getEnv("USER_PORT", "8002"),
-		DatabaseURL: getEnv("DATABASE_URL", databaseUrl),
+		Port:               getEnv("USER_PORT", "8002"),
+		DatabaseURL:        getEnv("DATABASE_URL", databaseUrl),
+		InternalServiceKey: getEnv("INTERNAL_SERVICE_KEY", "superpowers"),
 	}
 }
 

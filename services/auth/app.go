@@ -7,7 +7,6 @@ import (
 	"posdigi-auth/config"
 	"posdigi-auth/database"
 	"posdigi-auth/handler"
-	"posdigi-auth/repository"
 	"posdigi-auth/router"
 	"posdigi-auth/service"
 
@@ -31,25 +30,18 @@ func Bootstrap() (*App, error) {
 	// Load configuration
 	cfg := config.LoadConfig()
 
-	// Initialize database
-	db, err := database.InitPostgres(cfg)
+	// Initialize database (kept for future use / migrations)
+	_, err := database.InitPostgres(cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	// Auto-migrate database schema
-	if err := db.AutoMigrate(&repository.AuthUser{}); err != nil {
-		return nil, err
-	}
-
-	// Initialize layers
-	authRepo := repository.NewAuthRepository(db)
 
 	// Initialize User Service client
 	userServiceURL := getEnv("USER_SERVICE_URL", "http://localhost:8002")
 	userClient := client.NewUserClient(userServiceURL)
 
-	authService := service.NewAuthService(authRepo, userClient, cfg)
+	// Initialize service and handler
+	authService := service.NewAuthService(userClient, cfg)
 	authHandler := handler.NewAuthHandler(authService)
 
 	// Setup router

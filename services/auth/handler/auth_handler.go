@@ -24,11 +24,11 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 
 // Register handles user registration
 // @Summary Register new user
-// @Description Register a new user account
+// @Description Register a new user account with optional employee profile
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param request body dto.RegisterRequest true "Registration details"
+// @Param request body dto.RegisterRequest true "Registration details (can include employee_data)"
 // @Success 201 {object} dto.AuthResponse
 // @Failure 400 {object} dto.AuthResponse
 // @Failure 409 {object} dto.AuthResponse
@@ -46,7 +46,15 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
 	}
 
-	user, err := h.authService.Register(req.Email, req.Password)
+	// Validate employee data if provided
+	if req.EmployeeData != nil {
+		if req.EmployeeData.FullName == "" {
+			return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Employee full_name is required when employee_data is provided"))
+		}
+		config.Info("Registration includes employee profile data")
+	}
+
+	userProfile, token, err := h.authService.Register(req.Email, req.Password, req.EmployeeData)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			return c.JSON(http.StatusConflict, dto.NewErrorResponse("User already exists"))
@@ -54,10 +62,14 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Internal server error"))
 	}
 
-	userResponse := dto.NewUserResponse(user.ID, user.Email, user.Role)
-	config.Info("User registered successfully: " + user.Email)
+	userResponse := dto.NewUserResponse(userProfile.ID, userProfile.Email, userProfile.Role)
+	loginResponse := dto.LoginResponse{
+		User:  userResponse,
+		Token: token,
+	}
+	config.Info("User registered successfully: " + userProfile.Email)
 
-	return c.JSON(http.StatusCreated, dto.NewSuccessResponse("User registered successfully", userResponse))
+	return c.JSON(http.StatusCreated, dto.NewSuccessResponse("User registered successfully", loginResponse))
 }
 
 // Login handles user login
@@ -83,18 +95,18 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
 	}
 
-	user, token, err := h.authService.Login(req.Email, req.Password)
+	userProfile, token, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, dto.NewErrorResponse("Invalid credentials"))
 	}
 
-	userResponse := dto.NewUserResponse(user.ID, user.Email, user.Role)
+	userResponse := dto.NewUserResponse(userProfile.ID, userProfile.Email, userProfile.Role)
 	loginResponse := dto.LoginResponse{
 		User:  userResponse,
 		Token: token,
 	}
 
-	config.Info("User logged in successfully: " + user.Email)
+	config.Info("User logged in successfully: " + userProfile.Email)
 	return c.JSON(http.StatusOK, dto.NewSuccessResponse("Login successful", loginResponse))
 }
 
