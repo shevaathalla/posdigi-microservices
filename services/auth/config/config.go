@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 
@@ -30,11 +29,9 @@ type MongoDBConfig struct {
 }
 
 func LoadConfig() *Config {
-	if err := godotenv.Load(); err != nil {
-		if godotenv.Load("../../.env") != nil {
-			log.Fatalf("No .env file found: %v", err)
-		}
-	}
+	// Try to load .env file, but don't fail if it doesn't exist (Docker environment)
+	godotenv.Load()
+	godotenv.Load("../../.env")
 
 	databaseUrl := fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s?sslmode=disable",
