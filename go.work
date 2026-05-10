@@ -1,0 +1,8 @@
+go 1.25.0
+
+use (
+	./services/attendance
+	./services/auth
+	./services/gateway
+	./services/user
+)

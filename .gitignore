@@ -1,0 +1,13 @@
+# Environment
+.env
+
+# Temporary
+tmp
+
+# Build
+bin
+/pkg
+
+# Claude
+.claude
+

@@ -1,0 +1,27 @@
+{
+	"folders": [
+		{
+			"path": ".",
+			"name": "root"
+		},
+		{
+			"path": "services/gateway",
+			"name": "gateway"
+		},
+		{
+			"path": "services/auth",
+			"name": "auth"
+		},
+		{
+			"path": "services/user",
+			"name": "user"
+		},
+		{
+			"path": "services/attendance",
+			"name": "attendance"
+		}
+	],
+	"settings": {
+		"go.gopath": "${workspaceFolder}"
+	}
+}
