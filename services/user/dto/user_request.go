@@ -1,23 +1,19 @@
 package dto
 
-import (
-	"errors"
-	"strings"
-)
-
 // CreateUserRequest represents a request to create a user
 type CreateUserRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	FullName string `json:"full_name"`
-	Role     string `json:"role,omitempty"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
+	FullName string `json:"full_name" validate:"required,min=2,max=100"`
+	Role     string `json:"role,omitempty" validate:"omitempty,oneof=user admin"`
 }
 
 // UpdateUserRequest represents a request to update a user
 type UpdateUserRequest struct {
-	FullName string `json:"full_name,omitempty"`
-	Email    string `json:"email,omitempty"`
-	Role     string `json:"role,omitempty"`
+	FullName string `json:"full_name,omitempty" validate:"omitempty,min=2,max=100"`
+	Email    string `json:"email,omitempty" validate:"omitempty,email"`
+	Password string `json:"password,omitempty" validate:"omitempty,min=6"`
+	Role     string `json:"role,omitempty" validate:"omitempty,oneof=user admin"`
 }
 
 // ListUsersRequest represents a request to list users
@@ -27,29 +23,8 @@ type ListUsersRequest struct {
 	Search string `json:"search,omitempty"`
 }
 
-// Validate validates the create user request
-func (r *CreateUserRequest) Validate() error {
-	if strings.TrimSpace(r.Email) == "" {
-		return errors.New("Email is required")
-	}
-	if strings.TrimSpace(r.FullName) == "" {
-		return errors.New("Full name is required")
-	}
-	if r.Role == "" {
-		r.Role = "user" // Default role
-	}
-	return nil
-}
-
-// Validate validates the update user request
-func (r *UpdateUserRequest) Validate() error {
-	if strings.TrimSpace(r.FullName) == "" && strings.TrimSpace(r.Email) == "" && strings.TrimSpace(r.Role) == "" {
-		return errors.New("At least one field must be provided for update")
-	}
-	return nil
-}
-
-// Validate validates the list users request
+// Validate normalizes pagination defaults for ListUsersRequest.
+// Field validation is handled by c.Validate() via CustomValidator.
 func (r *ListUsersRequest) Validate() error {
 	if r.Page <= 0 {
 		r.Page = 1
@@ -65,6 +40,6 @@ func (r *ListUsersRequest) Validate() error {
 
 // AuthenticateUserRequest represents an authentication request from the auth service
 type AuthenticateUserRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }

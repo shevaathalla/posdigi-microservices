@@ -175,6 +175,14 @@ func (s *userService) UpdateUser(userID string, req *dto.UpdateUserRequest) (*re
 	if req.Role != "" {
 		user.Role = req.Role
 	}
+	if req.Password != "" {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			config.Errorf("Error hashing password on update: %v", err)
+			return nil, fmt.Errorf("error hashing password: %w", err)
+		}
+		user.Password = string(hashed)
+	}
 	user.UpdatedAt = time.Now()
 
 	if err := s.userRepo.Update(user); err != nil {

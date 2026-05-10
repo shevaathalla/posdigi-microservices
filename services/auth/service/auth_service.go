@@ -11,6 +11,8 @@ import (
 	"posdigi-auth/dto"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"github.com/posdigi/shared/activitylogger"
 )
 
 // AuthService defines the authentication service interface
@@ -21,8 +23,9 @@ type AuthService interface {
 }
 
 type authService struct {
-	userClient *client.UserClient
-	config     *config.Config
+	userClient     *client.UserClient
+	config         *config.Config
+	activityLogger *activitylogger.Logger
 }
 
 type Claims struct {
@@ -33,10 +36,11 @@ type Claims struct {
 }
 
 // NewAuthService creates a new auth service
-func NewAuthService(userClient *client.UserClient, cfg *config.Config) AuthService {
+func NewAuthService(userClient *client.UserClient, cfg *config.Config, activityLogger *activitylogger.Logger) AuthService {
 	return &authService{
-		userClient: userClient,
-		config:     cfg,
+		userClient:     userClient,
+		config:         cfg,
+		activityLogger: activityLogger,
 	}
 }
 
@@ -47,10 +51,24 @@ func (s *authService) Register(email, password string, employeeData *dto.Employe
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	requestID := uuid.New().String()
+
 	// Check if user already exists
 	existingUser, err := s.userClient.GetUserByEmail(ctx, email)
 	if err == nil && existingUser != nil {
 		config.Warn("User already exists: " + email)
+
+		// Log failed registration attempt
+		if s.activityLogger != nil {
+			metadata := &activitylogger.ActivityMetadata{
+				Extra: map[string]interface{}{
+					"email":        email,
+					"error_reason": "user already exists",
+				},
+			}
+			go s.activityLogger.LogUserAction(context.Background(), requestID, "", activitylogger.ActionRegister, "POST", "/auth/register", "", "", false, metadata)
+		}
+
 		return nil, "", errors.New("user already exists")
 	}
 
@@ -70,6 +88,18 @@ func (s *authService) Register(email, password string, employeeData *dto.Employe
 	userProfile, err := s.userClient.CreateUser(ctx, createUserReq)
 	if err != nil {
 		config.Errorf("Error creating user: %v", err)
+
+		// Log failed user creation
+		if s.activityLogger != nil {
+			metadata := &activitylogger.ActivityMetadata{
+				Extra: map[string]interface{}{
+					"email":        email,
+					"error_reason": err.Error(),
+				},
+			}
+			go s.activityLogger.LogUserAction(context.Background(), requestID, "", activitylogger.ActionRegister, "POST", "/auth/register", "", "", false, metadata)
+		}
+
 		return nil, "", fmt.Errorf("error creating user: %w", err)
 	}
 
@@ -88,6 +118,20 @@ func (s *authService) Register(email, password string, employeeData *dto.Employe
 			config.Errorf("Error creating employee profile: %v", err)
 			// Rollback user creation
 			_ = s.userClient.DeleteUser(ctx, userProfile.ID)
+
+			// Log failed employee creation
+			if s.activityLogger != nil {
+				metadata := &activitylogger.ActivityMetadata{
+					Extra: map[string]interface{}{
+						"email":            email,
+						"user_id":          userProfile.ID,
+						"error_reason":     "employee creation failed",
+						"employee_data":    employeeData,
+					},
+				}
+				go s.activityLogger.LogUserAction(context.Background(), requestID, userProfile.ID, activitylogger.ActionRegister, "POST", "/auth/register", "", "", false, metadata)
+			}
+
 			return nil, "", fmt.Errorf("error creating employee profile: %w", err)
 		}
 
@@ -97,10 +141,38 @@ func (s *authService) Register(email, password string, employeeData *dto.Employe
 	// Generate JWT token
 	token, err := s.generateToken(userProfile.ID, userProfile.Email, userProfile.Role)
 	if err != nil {
+		// Log failed token generation
+		if s.activityLogger != nil {
+			metadata := &activitylogger.ActivityMetadata{
+				Extra: map[string]interface{}{
+					"email":        email,
+					"user_id":      userProfile.ID,
+					"error_reason": "token generation failed",
+				},
+			}
+			go s.activityLogger.LogUserAction(context.Background(), requestID, userProfile.ID, activitylogger.ActionRegister, "POST", "/auth/register", "", "", false, metadata)
+		}
 		return nil, "", fmt.Errorf("error generating token: %w", err)
 	}
 
 	config.Infof("User registered successfully: %s (Profile ID: %s)", email, userProfile.ID)
+
+	// Log successful registration
+	if s.activityLogger != nil {
+		metadata := &activitylogger.ActivityMetadata{
+			After: map[string]interface{}{
+				"user_id":   userProfile.ID,
+				"email":     userProfile.Email,
+				"full_name": userProfile.FullName,
+				"role":      userProfile.Role,
+			},
+			Extra: map[string]interface{}{
+				"employee_created": employeeData != nil,
+			},
+		}
+		go s.activityLogger.LogUserAction(context.Background(), requestID, userProfile.ID, activitylogger.ActionRegister, "POST", "/auth/register", "", "", true, metadata)
+	}
+
 	return userProfile, token, nil
 }
 
@@ -111,10 +183,18 @@ func (s *authService) Login(email, password string) (*dto.UserProfileResponse, s
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	requestID := uuid.New().String()
+
 	// Authenticate via User Service
 	userProfile, err := s.userClient.AuthenticateUser(ctx, email, password)
 	if err != nil {
 		config.Warn("Login failed for: " + email + " - " + err.Error())
+
+		// Log failed login attempt
+		if s.activityLogger != nil {
+			go s.activityLogger.LogLogin(context.Background(), requestID, "", email, "", "", false, err.Error())
+		}
+
 		return nil, "", errors.New("invalid credentials")
 	}
 
@@ -122,10 +202,22 @@ func (s *authService) Login(email, password string) (*dto.UserProfileResponse, s
 	token, err := s.generateToken(userProfile.ID, userProfile.Email, userProfile.Role)
 	if err != nil {
 		config.Errorf("Error generating token: %v", err)
+
+		// Log failed token generation
+		if s.activityLogger != nil {
+			go s.activityLogger.LogLogin(context.Background(), requestID, userProfile.ID, email, "", "", false, "token generation failed")
+		}
+
 		return nil, "", fmt.Errorf("error generating token: %w", err)
 	}
 
 	config.Info("User logged in successfully: " + email)
+
+	// Log successful login
+	if s.activityLogger != nil {
+		go s.activityLogger.LogLogin(context.Background(), requestID, userProfile.ID, email, "", "", true, "")
+	}
+
 	return userProfile, token, nil
 }
 

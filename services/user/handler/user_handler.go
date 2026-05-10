@@ -41,11 +41,8 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		config.Warn("Invalid request body for user creation")
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		config.Warn("Validation failed: " + err.Error())
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	user, err := h.userService.CreateUser(&req)
@@ -139,9 +136,8 @@ func (h *UserHandler) AuthenticateUser(c echo.Context) error {
 		config.Warn("Invalid request body for authentication")
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
 	}
-
-	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Email and password are required"))
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	user, err := h.userService.AuthenticateUser(req.Email, req.Password)
@@ -186,11 +182,8 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 		config.Warn("Invalid request body for user update")
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		config.Warn("Validation failed: " + err.Error())
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	user, err := h.userService.UpdateUser(userID, &req)

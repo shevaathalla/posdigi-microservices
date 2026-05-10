@@ -14,6 +14,19 @@ type Config struct {
 	DatabaseURL string
 	JWTSecret   string
 	JWTExpiry   int
+	MongoDB     *MongoDBConfig
+}
+
+// MongoDBConfig holds MongoDB configuration
+type MongoDBConfig struct {
+	Host           string
+	Port           string
+	DatabaseName   string
+	Username       string
+	Password       string
+	AuthDB         string
+	ConnectTimeout int
+	PoolLimit      uint64
 }
 
 func LoadConfig() *Config {
@@ -37,6 +50,16 @@ func LoadConfig() *Config {
 		DatabaseURL: GetEnv("DATABASE_URL", databaseUrl),
 		JWTSecret:   GetEnv("JWT_SECRET", "crabbypatty"),
 		JWTExpiry:   GetEnvInt("JWT_EXPIRY", 24),
+		MongoDB: &MongoDBConfig{
+			Host:           GetEnv("MONGODB_HOST", "localhost"),
+			Port:           GetEnv("MONGODB_PORT", "27017"),
+			DatabaseName:   GetEnv("MONGODB_DATABASE", "posdigi_activity_logs"),
+			Username:       GetEnv("MONGODB_USERNAME", ""),
+			Password:       GetEnv("MONGODB_PASSWORD", ""),
+			AuthDB:         GetEnv("MONGODB_AUTH_DB", "admin"),
+			ConnectTimeout: GetEnvInt("MONGODB_CONNECTION_TIMEOUT", 10),
+			PoolLimit:      uint64(GetEnvInt("MONGODB_POOL_LIMIT", 100)),
+		},
 	}
 }
 
