@@ -1,0 +1,202 @@
+basePath: /
+definitions:
+  dto.AuthResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  dto.EmployeeDataRequest:
+    properties:
+      address:
+        maxLength: 500
+        type: string
+      department:
+        maxLength: 50
+        type: string
+      emergency_contact:
+        maxLength: 100
+        type: string
+      emergency_phone:
+        maxLength: 20
+        type: string
+      employment_status:
+        enum:
+        - active
+        - terminated
+        - on_leave
+        - suspended
+        type: string
+      full_name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      hire_date:
+        type: string
+      manager_id:
+        type: string
+      phone:
+        maxLength: 20
+        type: string
+      position:
+        maxLength: 50
+        type: string
+      salary:
+        minimum: 0
+        type: number
+    required:
+    - full_name
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      employee_data:
+        $ref: '#/definitions/dto.EmployeeDataRequest'
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.TokenRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
+host: localhost:8001
+info:
+  contact: {}
+  description: Authentication service for user registration, login, and token validation
+  title: Auth Service API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+      summary: Login user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account with optional employee profile
+      parameters:
+      - description: Registration details (can include employee_data)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+      summary: Register new user
+      tags:
+      - auth
+  /auth/validate:
+    get:
+      consumes:
+      - application/json
+      description: Validate JWT token and return user information
+      parameters:
+      - description: Token (optional if provided in body)
+        in: query
+        name: token
+        type: string
+      - description: Token in request body
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/dto.TokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+      summary: Validate JWT token
+      tags:
+      - auth
+    post:
+      consumes:
+      - application/json
+      description: Validate JWT token and return user information
+      parameters:
+      - description: Token (optional if provided in body)
+        in: query
+        name: token
+        type: string
+      - description: Token in request body
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/dto.TokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+      summary: Validate JWT token
+      tags:
+      - auth
+swagger: "2.0"

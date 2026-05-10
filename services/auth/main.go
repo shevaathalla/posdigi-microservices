@@ -3,6 +3,7 @@ package main
 import (
 	"posdigi-auth/config"
 
+	_ "posdigi-auth/docs" // Import swagger docs
 	"github.com/joho/godotenv"
 )
 

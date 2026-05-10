@@ -1,6 +1,45 @@
 # Posdigi Microservices
 
-A Go-based microservices system for employee and attendance management, built with Echo, GORM, PostgreSQL, and JWT authentication.
+A Go-based microservices system for employee and attendance management, built with Echo, GORM, PostgreSQL, MongoDB, and JWT authentication.
+
+## 🚀 Quick Start
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd posdigi-microservices
+
+# Start all services (Docker required)
+make docker-up
+
+# Access the API via Gateway
+curl http://localhost:8000/health
+
+# View Swagger documentation
+# Auth Service:  http://localhost:8001/docs/index.html
+# User Service:  http://localhost:8002/docs/index.html
+# Attendance Service: http://localhost:8003/docs/index.html
+# Gateway:        http://localhost:8000/docs/index.html
+```
+
+## 📋 Production Deployment
+
+**📖 Complete Deployment Guide:** [DEPLOYMENT.md](DEPLOYMENT.md)
+**🔒 Security Checklist:** [SECURITY_CHECKLIST.md](SECURITY_CHECKLIST.md)
+
+**Quick Deploy:**
+```bash
+# 1. Prepare production environment
+cp .env.example .env
+# Edit .env with production values
+
+# 2. Deploy to VPS
+scp -r . root@your-vps-ip:/var/www/posdigi-microservices/
+
+# 3. On VPS
+cd /var/www/posdigi-microservices
+make docker-up
+```
 
 ## Architecture Overview
 
@@ -20,13 +59,18 @@ A Go-based microservices system for employee and attendance management, built wi
 │  Auth   │      │   User   │    │  Attendance  │
 │  :8001  │─────▶│  :8002   │    │    :8003     │
 └─────────┘      └──────────┘    └──────────────┘
-                        │                │
-                        └────────┬───────┘
-                                 ▼
-                         ┌──────────────┐
-                         │  PostgreSQL  │
-                         │    :5432     │
-                         └──────────────┘
+    │                  │                 │
+    └──────────────────┴─────────┬───────┘
+                              ▼
+                    ┌──────────────────────┐
+                    │    PostgreSQL :5432   │
+                    │  (Users, Employees)   │
+                    └──────────────────────┘
+                              │
+                    ┌──────────────────────┐
+                    │    MongoDB :27017     │
+                    │  (Activity Logs)      │
+                    └──────────────────────┘
 ```
 
 | Service    | Port | Description |

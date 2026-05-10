@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/posdigi/shared/activitylogger"
+	"github.com/shevaathalla/posdigi-microservice/shared/activitylogger"
 )
 
 // AuthService defines the authentication service interface
@@ -123,10 +123,10 @@ func (s *authService) Register(email, password string, employeeData *dto.Employe
 			if s.activityLogger != nil {
 				metadata := &activitylogger.ActivityMetadata{
 					Extra: map[string]interface{}{
-						"email":            email,
-						"user_id":          userProfile.ID,
-						"error_reason":     "employee creation failed",
-						"employee_data":    employeeData,
+						"email":         email,
+						"user_id":       userProfile.ID,
+						"error_reason":  "employee creation failed",
+						"employee_data": employeeData,
 					},
 				}
 				go s.activityLogger.LogUserAction(context.Background(), requestID, userProfile.ID, activitylogger.ActionRegister, "POST", "/auth/register", "", "", false, metadata)

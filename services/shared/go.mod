@@ -1,4 +1,4 @@
-module github.com/posdigi/shared
+module github.com/shevaathalla/posdigi-microservice/shared
 
 go 1.25.0
 

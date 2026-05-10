@@ -3,6 +3,7 @@ package main
 import (
 	"posdigi-attendance/config"
 
+	_ "posdigi-attendance/docs" // Import swagger docs
 	"github.com/joho/godotenv"
 )
 

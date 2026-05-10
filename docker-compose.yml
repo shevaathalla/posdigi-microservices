@@ -4,114 +4,201 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: posdigi-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: attendance_db
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-posdigi_microservices}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
     networks:
       - posdigi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7.0
+    container_name: posdigi-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME:-}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-posdigi_activity_logs}
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - posdigi-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth-service:
     build:
       context: ./services/auth
       dockerfile: Dockerfile
     container_name: posdigi-auth
+    restart: unless-stopped
     ports:
-      - "8001:8001"
+      - "${AUTH_PORT:-8001}:8001"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: root
-      DB_NAME: attendance_db
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-posdigi_microservices}
       AUTH_PORT: 8001
-      JWT_SECRET: crabbypatty
-      JWT_EXPIRY_HOURS: 24
-      INTERNAL_SERVICE_KEY: superpowers
-      LOG_LEVEL: INFO
-      ENVIRONMENT: development
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      JWT_EXPIRY: ${JWT_EXPIRY:-24}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-change-this-in-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      USER_SERVICE_URL: http://user-service:8002
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-posdigi_activity_logs}
+      MONGODB_USERNAME: ${MONGODB_USERNAME:-}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD:-}
+      MONGODB_AUTH_DB: ${MONGODB_AUTH_DB:-admin}
+      MONGODB_CONNECTION_TIMEOUT: ${MONGODB_CONNECTION_TIMEOUT:-10}
+      MONGODB_POOL_LIMIT: ${MONGODB_POOL_LIMIT:-100}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - posdigi-network
+    expose:
+      - "8001"
 
   user-service:
     build:
       context: ./services/user
       dockerfile: Dockerfile
     container_name: posdigi-user
+    restart: unless-stopped
     ports:
-      - "8002:8002"
+      - "${USER_PORT:-8002}:8002"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: root
-      DB_NAME: attendance_db
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-posdigi_microservices}
       USER_PORT: 8002
-      JWT_SECRET: crabbypatty
-      INTERNAL_SERVICE_KEY: superpowers
-      LOG_LEVEL: INFO
-      ENVIRONMENT: development
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-change-this-in-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      AUTH_SERVICE_URL: http://auth-service:8001
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-posdigi_activity_logs}
+      MONGODB_USERNAME: ${MONGODB_USERNAME:-}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD:-}
+      MONGODB_AUTH_DB: ${MONGODB_AUTH_DB:-admin}
+      MONGODB_CONNECTION_TIMEOUT: ${MONGODB_CONNECTION_TIMEOUT:-10}
+      MONGODB_POOL_LIMIT: ${MONGODB_POOL_LIMIT:-100}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - posdigi-network
+    expose:
+      - "8002"
 
   attendance-service:
     build:
       context: ./services/attendance
       dockerfile: Dockerfile
     container_name: posdigi-attendance
+    restart: unless-stopped
     ports:
-      - "8003:8003"
+      - "${ATTENDANCE_PORT:-8003}:8003"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: root
-      DB_NAME: attendance_db
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-posdigi_microservices}
       ATTENDANCE_PORT: 8003
-      JWT_SECRET: crabbypatty
-      INTERNAL_SERVICE_KEY: superpowers
-      LOG_LEVEL: INFO
-      ENVIRONMENT: development
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-change-this-in-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      AUTH_SERVICE_URL: http://auth-service:8001
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-posdigi_activity_logs}
+      MONGODB_USERNAME: ${MONGODB_USERNAME:-}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD:-}
+      MONGODB_AUTH_DB: ${MONGODB_AUTH_DB:-admin}
+      MONGODB_CONNECTION_TIMEOUT: ${MONGODB_CONNECTION_TIMEOUT:-10}
+      MONGODB_POOL_LIMIT: ${MONGODB_POOL_LIMIT:-100}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - posdigi-network
+    expose:
+      - "8003"
 
   gateway-service:
     build:
       context: ./services/gateway
       dockerfile: Dockerfile
     container_name: posdigi-gateway
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${GATEWAY_PORT:-8000}:8000"
     environment:
       GATEWAY_PORT: 8000
       AUTH_SERVICE_URL: http://auth-service:8001
       USER_SERVICE_URL: http://user-service:8002
       ATTENDANCE_SERVICE_URL: http://attendance-service:8003
-      JWT_SECRET: crabbypatty
-      RATE_LIMIT_REQUESTS: 100
-      RATE_LIMIT_WINDOW: 1m
-      INTERNAL_SERVICE_KEY: superpowers
-      LOG_LEVEL: INFO
-      ENVIRONMENT: development
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-1m}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-change-this-in-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-posdigi_microservices}
     depends_on:
-      - auth-service
-      - user-service
-      - attendance-service
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      attendance-service:
+        condition: service_started
     networks:
       - posdigi-network
 
 volumes:
   postgres_data:
+  mongodb_data:
 
 networks:
   posdigi-network:

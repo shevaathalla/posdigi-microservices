@@ -3,6 +3,7 @@ package main
 import (
 	"posdigi-user/config"
 
+	_ "posdigi-user/docs" // Import swagger docs
 	"github.com/joho/godotenv"
 )
 

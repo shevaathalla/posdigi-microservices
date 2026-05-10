@@ -10,9 +10,9 @@ import (
 	"posdigi-auth/router"
 	"posdigi-auth/service"
 
-	"github.com/posdigi/shared/activitylogger"
-	"github.com/posdigi/shared/mongodb"
 	"github.com/labstack/echo/v4"
+	"github.com/shevaathalla/posdigi-microservice/shared/activitylogger"
+	"github.com/shevaathalla/posdigi-microservice/shared/mongodb"
 	"github.com/sirupsen/logrus"
 )
 
@@ -46,14 +46,14 @@ func Bootstrap() (*App, error) {
 
 	if cfg.MongoDB != nil {
 		mongoCfg := mongodb.Config{
-			Host:            cfg.MongoDB.Host,
-			Port:            cfg.MongoDB.Port,
-			DatabaseName:    cfg.MongoDB.DatabaseName,
-			Username:        cfg.MongoDB.Username,
-			Password:        cfg.MongoDB.Password,
-			AuthDB:          cfg.MongoDB.AuthDB,
-			ConnectTimeout:  cfg.MongoDB.ConnectTimeout,
-			PoolLimit:       cfg.MongoDB.PoolLimit,
+			Host:           cfg.MongoDB.Host,
+			Port:           cfg.MongoDB.Port,
+			DatabaseName:   cfg.MongoDB.DatabaseName,
+			Username:       cfg.MongoDB.Username,
+			Password:       cfg.MongoDB.Password,
+			AuthDB:         cfg.MongoDB.AuthDB,
+			ConnectTimeout: cfg.MongoDB.ConnectTimeout,
+			PoolLimit:      cfg.MongoDB.PoolLimit,
 		}
 
 		mongoClient, err = mongodb.ConnectMongoDB(mongoCfg)

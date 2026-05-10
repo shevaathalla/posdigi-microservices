@@ -8,14 +8,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.15.2
-	github.com/posdigi/shared v0.0.0-00010101000000-000000000000
+	github.com/shevaathalla/posdigi-microservice/shared v0.0.0-00010101000000-000000000000
 	github.com/sirupsen/logrus v1.9.4
 	github.com/swaggo/echo-swagger v1.5.2
 	gorm.io/gorm v1.31.1
 )
 
 // Use local shared package
-replace github.com/posdigi/shared => ../shared
+replace github.com/shevaathalla/posdigi-microservice/shared => ../shared
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect

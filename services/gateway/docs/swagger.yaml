@@ -1,0 +1,10 @@
+basePath: /
+host: localhost:8000
+info:
+  contact: {}
+  description: API Gateway for microservices - handles routing, authentication, and
+    rate limiting
+  title: Gateway Service API
+  version: "1.0"
+paths: {}
+swagger: "2.0"
