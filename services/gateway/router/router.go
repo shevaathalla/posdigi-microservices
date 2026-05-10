@@ -27,9 +27,17 @@ func SetupRoutes(e *echo.Echo, proxyHandler *handler.ProxyHandler, healthChecker
 	protected.Use(middleware.AuthMiddleware(cfg.JWTSecret, logger))
 
 	// User service routes
+	// NOTE: both the bare path (/users) AND wildcard (/users/*) are needed.
+	// /users/* alone does NOT match GET /api/v1/users (the list endpoint).
+	protected.Any("/users", proxyHandler.ProxyToUser)
 	protected.Any("/users/*", proxyHandler.ProxyToUser)
 
+	// Employee routes (fully proxied to User Service)
+	protected.Any("/employees", proxyHandler.ProxyToUser)
+	protected.Any("/employees/*", proxyHandler.ProxyToUser)
+
 	// Attendance service routes
+	protected.Any("/attendance", proxyHandler.ProxyToAttendance)
 	protected.Any("/attendance/*", proxyHandler.ProxyToAttendance)
 
 	// Gateway health check endpoint

@@ -13,6 +13,9 @@ import (
 func Setup(log *logrus.Logger, authHandler *handler.AuthHandler) *echo.Echo {
 	e := echo.New()
 
+	// Register go-playground/validator
+	e.Validator = middleware.NewCustomValidator()
+
 	// Middleware
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())

@@ -33,6 +33,9 @@ func (h *EmployeeHandler) CreateEmployee(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request format"))
 	}
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
 
 	employee, err := h.employeeService.CreateEmployee(&req)
 	if err != nil {
@@ -142,6 +145,9 @@ func (h *EmployeeHandler) UpdateEmployee(c echo.Context) error {
 	var req dto.UpdateEmployeeRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request format"))
+	}
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	employee, err := h.employeeService.UpdateEmployee(id, &req)

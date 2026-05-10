@@ -13,6 +13,9 @@ import (
 func Setup(log *logrus.Logger, attendanceHandler *handler.AttendanceHandler, internalServiceKey string) *echo.Echo {
 	e := echo.New()
 
+	// Register go-playground/validator
+	e.Validator = middleware.NewCustomValidator()
+
 	// Essential middleware only (no CORS/Gzip - Gateway handles those)
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())

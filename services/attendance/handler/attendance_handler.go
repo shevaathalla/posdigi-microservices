@@ -40,11 +40,8 @@ func (h *AttendanceHandler) ClockIn(c echo.Context) error {
 		config.Warn("Invalid request body for clock-in")
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		config.Warn("Validation failed: " + err.Error())
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	attendance, err := h.attendanceService.ClockIn(&req)
@@ -86,11 +83,8 @@ func (h *AttendanceHandler) ClockOut(c echo.Context) error {
 		config.Warn("Invalid request body for clock-out")
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		config.Warn("Validation failed: " + err.Error())
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	attendance, err := h.attendanceService.ClockOut(&req)
@@ -136,19 +130,26 @@ func (h *AttendanceHandler) GetAttendanceHistory(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("User ID is required"))
 	}
 
-	// Parse query parameters
+	// Parse and normalize pagination params
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
 
 	req := &dto.GetAttendanceHistoryRequest{
 		UserID: userID,
 		Page:   page,
 		Limit:  limit,
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(req); err != nil {
+		return err
 	}
 
 	response, err := h.attendanceService.GetAttendanceHistory(req)
@@ -185,11 +186,8 @@ func (h *AttendanceHandler) GetAttendanceSummary(c echo.Context) error {
 		StartDate: startDate,
 		EndDate:   endDate,
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		config.Warn("Validation failed: " + err.Error())
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(req); err != nil {
+		return err
 	}
 
 	response, err := h.attendanceService.GetAttendanceSummary(req)

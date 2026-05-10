@@ -1,72 +1,34 @@
 package dto
 
-import (
-	"errors"
-	"strings"
-)
-
 // RegisterRequest represents a user registration request
 type RegisterRequest struct {
-	Email        string                `json:"email"`
-	Password     string                `json:"password"`
-	EmployeeData *EmployeeDataRequest  `json:"employee_data,omitempty"`
+	Email        string               `json:"email" validate:"required,email"`
+	Password     string               `json:"password" validate:"required,min=6"`
+	EmployeeData *EmployeeDataRequest `json:"employee_data,omitempty"`
 }
 
 // EmployeeDataRequest represents employee profile data during registration
 type EmployeeDataRequest struct {
-	FullName         string  `json:"full_name,omitempty"`
-	Phone            string  `json:"phone,omitempty"`
-	Department       string  `json:"department,omitempty"`
-	Position         string  `json:"position,omitempty"`
-	Salary           float64 `json:"salary,omitempty"`
-	HireDate         string  `json:"hire_date,omitempty"`
-	EmploymentStatus string  `json:"employment_status,omitempty"`
+	FullName         string  `json:"full_name,omitempty" validate:"required,min=2,max=100"`
+	Phone            string  `json:"phone,omitempty" validate:"omitempty,max=20"`
+	Department       string  `json:"department,omitempty" validate:"omitempty,max=50"`
+	Position         string  `json:"position,omitempty" validate:"omitempty,max=50"`
+	Salary           float64 `json:"salary,omitempty" validate:"omitempty,min=0"`
+	HireDate         string  `json:"hire_date,omitempty" validate:"omitempty"`
+	EmploymentStatus string  `json:"employment_status,omitempty" validate:"omitempty,oneof=active terminated on_leave suspended"`
 	ManagerID        *string `json:"manager_id,omitempty"`
-	EmergencyContact string  `json:"emergency_contact,omitempty"`
-	EmergencyPhone   string  `json:"emergency_phone,omitempty"`
-	Address          string  `json:"address,omitempty"`
+	EmergencyContact string  `json:"emergency_contact,omitempty" validate:"omitempty,max=100"`
+	EmergencyPhone   string  `json:"emergency_phone,omitempty" validate:"omitempty,max=20"`
+	Address          string  `json:"address,omitempty" validate:"omitempty,max=500"`
 }
 
 // LoginRequest represents a user login request
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 // TokenRequest represents a token validation request
 type TokenRequest struct {
-	Token string `json:"token"`
-}
-
-// Validate validates the register request
-func (r *RegisterRequest) Validate() error {
-	if strings.TrimSpace(r.Email) == "" {
-		return errors.New("Email is required")
-	}
-	if strings.TrimSpace(r.Password) == "" {
-		return errors.New("Password is required")
-	}
-	if len(r.Password) < 6 {
-		return errors.New("Password must be at least 6 characters")
-	}
-	return nil
-}
-
-// Validate validates the login request
-func (r *LoginRequest) Validate() error {
-	if strings.TrimSpace(r.Email) == "" {
-		return errors.New("Email is required")
-	}
-	if strings.TrimSpace(r.Password) == "" {
-		return errors.New("Password is required")
-	}
-	return nil
-}
-
-// Validate validates the token request
-func (r *TokenRequest) Validate() error {
-	if strings.TrimSpace(r.Token) == "" {
-		return errors.New("Token is required")
-	}
-	return nil
+	Token string `json:"token" validate:"required"`
 }

@@ -39,17 +39,14 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		config.Warn("Invalid request body for registration")
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		config.Warn("Validation failed: " + err.Error())
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	// Validate employee data if provided
 	if req.EmployeeData != nil {
-		if req.EmployeeData.FullName == "" {
-			return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Employee full_name is required when employee_data is provided"))
+		if err := c.Validate(req.EmployeeData); err != nil {
+			return err
 		}
 		config.Info("Registration includes employee profile data")
 	}
@@ -94,11 +91,8 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		config.Warn("Invalid request body for login")
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
 	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		config.Warn("Validation failed: " + err.Error())
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse(err.Error()))
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	userProfile, token, err := h.authService.Login(req.Email, req.Password)
