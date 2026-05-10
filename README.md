@@ -2,6 +2,16 @@
 
 A Go-based microservices system for employee and attendance management, built with Echo, GORM, PostgreSQL, MongoDB, and JWT authentication.
 
+## ✨ Key Features
+
+- **🔐 Secure Authentication** - JWT-based auth with bcrypt password hashing
+- **👥 User Management** - Complete CRUD operations with employee profiles
+- **⏰ Attendance Tracking** - Clock-in/clockout with history and summaries
+- **📊 Activity Logging** - MongoDB-powered audit trail for all user actions
+- **🚀 High Performance** - Clean architecture with proper separation of concerns
+- **🐳 Production Ready** - Docker setup with health checks and auto-restart
+- **📖 Well Documented** - Comprehensive API documentation with Swagger
+
 ## 🚀 Quick Start
 
 ```bash
@@ -26,20 +36,33 @@ curl http://localhost:8000/health
 
 **📖 Complete Deployment Guide:** [DEPLOYMENT.md](DEPLOYMENT.md)
 **🔒 Security Checklist:** [SECURITY_CHECKLIST.md](SECURITY_CHECKLIST.md)
+**🎯 Deployment Readiness:** [DEPLOYMENT_READINESS.md](DEPLOYMENT_READINESS.md)
 
 **Quick Deploy:**
 ```bash
-# 1. Prepare production environment
-cp .env.example .env
-# Edit .env with production values
+# 1. Generate production secrets
+./generate-secrets.sh
 
-# 2. Deploy to VPS
+# 2. Prepare production environment
+cp .env.production.example .env
+# Add generated secrets to .env
+
+# 3. Deploy to VPS
 scp -r . root@your-vps-ip:/var/www/posdigi-microservices/
 
-# 3. On VPS
+# 4. On VPS
 cd /var/www/posdigi-microservices
-make docker-up
+docker-compose up -d --build
 ```
+
+**Production Features:**
+- ✅ Health checks with automatic restart
+- ✅ MongoDB and PostgreSQL with proper indexing
+- ✅ Activity logging for security auditing
+- ✅ Rate limiting and request tracking
+- ✅ SSL/HTTPS support
+- ✅ Automated backup scripts
+- ✅ Monitoring and alerting setup
 
 ## Architecture Overview
 
@@ -204,7 +227,7 @@ GET  /health
 
 ## Database Schema
 
-All services share a single PostgreSQL database (`attendance_db`).
+All services share a single PostgreSQL database (`posdigi_microservices`) and use MongoDB for activity logging.
 
 ### `users` table
 | Column     | Type         | Notes |
@@ -242,6 +265,52 @@ All services share a single PostgreSQL database (`attendance_db`).
 | deleted_at        | TIMESTAMP     | Soft delete |
 
 ### `attendances` table
+
+### MongoDB Activity Logs Collection
+
+The system uses MongoDB for comprehensive activity logging and audit trails:
+
+**`activity_logs` collection structure:**
+| Field          | Type    | Description |
+|---------------|---------|-------------|
+| _id           | ObjectId | Auto-generated MongoDB ID |
+| user_id       | UUID    | Reference to user who performed action |
+| employee_id   | UUID    | Reference to employee (if applicable) |
+| service       | String  | Service name (auth, user, attendance, gateway) |
+| action        | String  | Action type (LOGIN_SUCCESS, USER_CREATED, CLOCK_IN, etc.) |
+| endpoint      | String  | API endpoint called |
+| method        | String  | HTTP method (GET, POST, PUT, DELETE) |
+| ip_address    | String  | Client IP address |
+| user_agent    | String  | Client user agent |
+| request_id    | String  | Request ID for distributed tracing |
+| status_code   | Int     | HTTP response status |
+| success       | Boolean | Action success status |
+| error_message | String  | Error details if failed |
+| metadata      | Object  | Additional data (before/after states, changes, etc.) |
+| timestamp     | Date    | When action occurred |
+| created_at    | Date    | Log creation time |
+
+**Automatic Activity Tracking:**
+- ✅ User registration and authentication events
+- ✅ User and employee CRUD operations
+- ✅ Attendance clock-in/clock-out events
+- ✅ Failed login attempts and errors
+- ✅ Inter-service communication
+- ✅ Request/response logging with correlation IDs
+
+**Querying Activity Logs:**
+```bash
+# Get recent activity via MongoDB shell
+docker exec -it posdigi-mongodb mongosh
+use posdigi_activity_logs
+db.activity_logs.find().sort({timestamp: -1}).limit(10)
+
+# Get user activity history
+db.activity_logs.find({"user_id": "user-uuid"}).sort({timestamp: -1})
+
+# Get failed login attempts
+db.activity_logs.find({"action": "LOGIN_FAILED"}).sort({timestamp: -1})
+```
 | Column     | Type        | Notes |
 |------------|-------------|-------|
 | id         | VARCHAR(36) | UUID |
@@ -258,8 +327,10 @@ All services share a single PostgreSQL database (`attendance_db`).
 ## Getting Started
 
 ### Prerequisites
-- Go 1.21+
+- Go 1.25+
 - Docker & Docker Compose
+- MongoDB (local or Docker)
+- PostgreSQL (local or Docker)
 - `golang-migrate` CLI (for migrations)
 - `make`
 
@@ -286,14 +357,24 @@ This starts all services and runs all migrations. The gateway will be available 
 Copy `.env.example` to `.env` and adjust values:
 
 ```env
-# Database
+# PostgreSQL Database Configuration
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=posdigi_microservices
 DB_USER=postgres
 DB_PASSWORD=postgres
 
-# Ports
+# MongoDB Configuration (Activity Logs)
+MONGODB_HOST=localhost
+MONGODB_PORT=27017
+MONGODB_DATABASE=posdigi_activity_logs
+MONGODB_USERNAME=
+MONGODB_PASSWORD=
+MONGODB_AUTH_DB=admin
+MONGODB_CONNECTION_TIMEOUT=10
+MONGODB_POOL_LIMIT=100
+
+# Service Ports
 AUTH_PORT=8001
 USER_PORT=8002
 ATTENDANCE_PORT=8003
@@ -304,19 +385,25 @@ USER_SERVICE_URL=http://localhost:8002
 AUTH_SERVICE_URL=http://localhost:8001
 ATTENDANCE_SERVICE_URL=http://localhost:8003
 
-# JWT
+# JWT Configuration
 JWT_SECRET=your-secret-key-change-in-production
 JWT_EXPIRY=24
 
-# Security
+# Internal Service Communication
 INTERNAL_SERVICE_KEY=internal-service-key-change-in-production
 
 # Logging
 LOG_LEVEL=INFO
+
+# Environment
 ENVIRONMENT=development
+
+# Gateway Rate Limiting
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=1m
 ```
 
-> ⚠️ **Security:** Always change `JWT_SECRET` and `INTERNAL_SERVICE_KEY` in production.
+> ⚠️ **Security:** Always change `JWT_SECRET` and `INTERNAL_SERVICE_KEY` in production. Use `./generate-secrets.sh` to generate secure secrets.
 
 ---
 
@@ -338,14 +425,33 @@ make run-all
 
 ## Docker
 
+The Docker setup includes all services plus both PostgreSQL and MongoDB databases:
+
 ```bash
-make docker-up        # Start all services
+make docker-up        # Start all services (including databases)
 make docker-down      # Stop all services
 make docker-build     # Build images
 make docker-rebuild   # Rebuild from scratch (no cache)
 make docker-logs      # Tail all logs
 make docker-logs-auth # Tail auth service logs
 make docker-ps        # Show container status
+```
+
+**Docker Services:**
+- `postgres` - PostgreSQL database on port 5432
+- `mongodb` - MongoDB database on port 27017
+- `auth-service` - Authentication service on port 8001
+- `user-service` - User management service on port 8002
+- `attendance-service` - Attendance tracking service on port 8003
+- `gateway-service` - API Gateway on port 8000
+
+**Local MongoDB Setup:**
+If you prefer to use local MongoDB instead of Docker:
+
+```bash
+# Make sure MongoDB is running on localhost:27017
+# Update .env with your MongoDB credentials
+# Services will automatically connect to local MongoDB
 ```
 
 ---
@@ -438,6 +544,14 @@ The Auth Service communicates with the User Service via HTTP. It **never** acces
 ```
 posdigi-microservices/
 ├── services/
+│   ├── shared/             # Shared packages and utilities
+│   │   ├── activitylogger/ # MongoDB activity logging system
+│   │   │   ├── logger.go   # Main logging interface
+│   │   │   ├── middleware.go # HTTP logging middleware
+│   │   │   ├── model.go    # Activity log data structures
+│   │   │   └── repository.go # MongoDB operations
+│   │   └── mongodb/        # MongoDB client and configuration
+│   │       └── client.go   # Connection management
 │   ├── auth/               # Auth service
 │   │   ├── client/         # HTTP client for User Service
 │   │   ├── config/
@@ -471,11 +585,14 @@ posdigi-microservices/
 │       ├── middleware/
 │       ├── router/
 │       └── service/        # Health checker
-├── migrations/             # SQL migration files
-├── docker-compose.yml
-├── Makefile
-├── go.work                 # Go workspace
-└── .env.example
+├── migrations/             # SQL migration files for PostgreSQL
+├── mongo-init.js           # MongoDB initialization script
+├── docker-compose.yml      # Multi-service Docker setup
+├── Makefile                # Build automation
+├── go.work                 # Go workspace configuration
+├── DEPLOYMENT.md           # Production deployment guide
+├── SECURITY_CHECKLIST.md   # Security hardening checklist
+└── .env.example            # Environment variable template
 ```
 
 ---
@@ -488,7 +605,7 @@ posdigi-microservices/
 | `make run-all` | Run all services locally |
 | `make docker-up` | Start all Docker services |
 | `make docker-down` | Stop all Docker services |
-| `make migrate-up` | Apply all migrations |
+| `make migrate-up` | Apply all PostgreSQL migrations |
 | `make migrate-down` | Roll back all migrations |
 | `make migrate-create NAME=x` | Create a new migration |
 | `make test-all` | Run all tests |
@@ -496,14 +613,85 @@ posdigi-microservices/
 | `make install-deps` | Download all Go dependencies |
 | `make swagger-generate` | Generate Swagger docs |
 | `make db-shell` | Open PostgreSQL shell |
-| `make db-backup` | Backup the database |
+| `make db-backup` | Backup the PostgreSQL database |
 | `make clean` | Remove build artifacts |
+
+### MongoDB Commands:
+```bash
+# MongoDB shell
+docker exec -it posdigi-mongodb mongosh
+
+# MongoDB backup
+docker exec posdigi-mongodb mongodump --db posdigi_activity_logs --out /backup
+
+# MongoDB restore
+docker exec posdigi-mongodb mongorestore --db posdigi_activity_logs /backup/posdigi_activity_logs
+
+# View activity logs count
+docker exec -it posdigi-mongodb mongosh --eval 'use posdigi_activity_logs; db.activity_logs.count()'
+```
 
 ---
 
-## Health Checks
+## Activity Logging & Monitoring
 
-> ⚠️ Health endpoints are at the **root path** — NOT under `/api/v1/`. Calling `/api/v1/users/health` will hit the JWT-protected group and return `401 Missing authorization header`.
+The system automatically logs all user activities to MongoDB for security auditing and compliance:
+
+### What Gets Logged:
+- **Authentication Events** - Login success/failure, token generation, registration
+- **User Operations** - User creation, updates, deletions with before/after states
+- **Employee Changes** - Profile updates, status changes, department transfers
+- **Attendance Actions** - Clock-in/clockout events, modifications
+- **System Events** - Health checks, migrations, configuration changes
+
+### Activity Monitoring Examples:
+
+```bash
+# Get recent activity
+docker exec -it posdigi-mongodb mongosh --eval '
+  use posdigi_activity_logs;
+  db.activity_logs.find()
+    .sort({timestamp: -1})
+    .limit(20);
+'
+
+# Monitor failed login attempts (security)
+docker exec -it posdigi-mongodb mongosh --eval '
+  use posdigi_activity_logs;
+  db.activity_logs.find({
+    action: "LOGIN_FAILED"
+  }).sort({timestamp: -1});
+'
+
+# Get user activity timeline
+docker exec -it posdigi-mongodb mongosh --eval '
+  use posdigi_activity_logs;
+  db.activity_logs.find({
+    user_id: "user-uuid-here"
+  }).sort({timestamp: -1});
+'
+
+# Generate activity statistics
+docker exec -it posdigi-mongodb mongosh --eval '
+  use posdigi_activity_logs;
+  db.activity_logs.aggregate([
+    {$group: {
+      _id: "$action",
+      count: {$sum: 1}
+    }},
+    {$sort: {count: -1}}
+  ]);
+'
+```
+
+### Activity Log API (Future Enhancement):
+Planned endpoints for querying activity logs:
+- `GET /api/v1/activity/logs` - Get all logs (admin only)
+- `GET /api/v1/activity/logs/user/:userId` - User activity history
+- `GET /api/v1/activity/logs/service/:service` - Service-specific logs
+- `GET /api/v1/activity/logs/summary` - Activity statistics
+
+---
 
 | URL | Auth required | Description |
 |-----|---------------|-------------|
@@ -528,3 +716,87 @@ curl http://localhost:8000/health
   }
 }
 ```
+
+---
+
+## Troubleshooting
+
+### Common Issues:
+
+**MongoDB Connection Issues:**
+```bash
+# Check if MongoDB is running
+docker-compose ps mongodb
+
+# Check MongoDB logs
+docker-compose logs mongodb
+
+# Test MongoDB connection
+docker exec -it posdigi-mongodb mongosh --eval "db.adminCommand('ping')"
+
+# Restart MongoDB service
+docker-compose restart mongodb
+```
+
+**Activity Logging Not Working:**
+```bash
+# Check MongoDB connection in service logs
+docker-compose logs auth-service | grep -i mongo
+
+# Verify MongoDB indexes
+docker exec -it posdigi-mongodb mongosh --eval '
+  use posdigi_activity_logs;
+  db.activity_logs.getIndexes();
+'
+
+# Check if activity logs collection exists
+docker exec -it posdigi-mongodb mongosh --eval '
+  use posdigi_activity_logs;
+  db.listCollections();
+'
+```
+
+**Services Not Starting:**
+```bash
+# Check service logs
+docker-compose logs auth-service
+
+# Verify all dependencies are healthy
+docker-compose ps
+
+# Restart specific service
+docker-compose restart auth-service
+
+# Rebuild and restart
+docker-compose up -d --build auth-service
+```
+
+**Database Migration Issues:**
+```bash
+# Check migration status
+make migrate-status
+
+# Fix dirty migration state
+make migrate-fix-dirty
+
+# Rollback and reapply
+make migrate-redo
+```
+
+**Port Conflicts:**
+```bash
+# Check what's using port 8000
+netstat -tulpn | grep :8000
+
+# Change ports in .env file
+nano .env
+```
+
+### Getting Help:
+
+1. Check service logs: `docker-compose logs -f [service-name]`
+2. Verify health endpoints: `curl http://localhost:8000/health`
+3. Review [DEPLOYMENT.md](DEPLOYMENT.md) for deployment issues
+4. Check [SECURITY_CHECKLIST.md](SECURITY_CHECKLIST.md) for security issues
+
+---
