@@ -47,7 +47,16 @@ func (ph *ProxyHandler) ProxyToAttendance(c echo.Context) error {
 func (ph *ProxyHandler) proxyRequest(c echo.Context, serviceClient *client.ServiceClient) error {
 	// Extract request details
 	method := c.Request().Method
-	path := c.Request().URL.Path
+
+	// Include both path and query parameters for proper URL forwarding
+	path := c.Request().URL.RequestURI()
+
+	// Debug logging to see what's being forwarded
+	ph.logger.WithFields(logrus.Fields{
+		"method": method,
+		"path":   path,
+		"raw_url": c.Request().URL.String(),
+	}).Debug("Forwarding request with path and query params")
 
 	// Read request body
 	var body []byte

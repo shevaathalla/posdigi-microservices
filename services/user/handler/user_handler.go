@@ -134,16 +134,16 @@ func (h *UserHandler) AuthenticateUser(c echo.Context) error {
 	var req dto.AuthenticateUserRequest
 	if err := c.Bind(&req); err != nil {
 		config.Warn("Invalid request body for authentication")
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request body"))
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request format. Expected: {\"email\": \"user@example.com\", \"password\": \"yourpassword\"}"))
 	}
 	if err := c.Validate(&req); err != nil {
-		return err
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Validation failed: email and password are required"))
 	}
 
 	user, err := h.userService.AuthenticateUser(req.Email, req.Password)
 	if err != nil {
 		config.Warn("Authentication failed for: " + req.Email)
-		return c.JSON(http.StatusUnauthorized, dto.NewErrorResponse("Invalid credentials"))
+		return c.JSON(http.StatusUnauthorized, dto.NewErrorResponse("Invalid email or password"))
 	}
 
 	userResponse := dto.NewUserResponse(

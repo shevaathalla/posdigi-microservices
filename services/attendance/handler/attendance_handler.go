@@ -167,8 +167,8 @@ func (h *AttendanceHandler) GetAttendanceHistory(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param userId path string true "User ID"
-// @Param start_date query string true "Start date (YYYY-MM-DD)"
-// @Param end_date query string true "End date (YYYY-MM-DD)"
+// @Param start_date query string true "Start date (YYYY-MM-DD)" example(2024-01-01)
+// @Param end_date query string true "End date (YYYY-MM-DD)" example(2024-12-31)
 // @Success 200 {object} dto.APIResponse
 // @Failure 400 {object} dto.APIResponse
 // @Router /attendance/summary/{userId} [get]
@@ -181,13 +181,36 @@ func (h *AttendanceHandler) GetAttendanceSummary(c echo.Context) error {
 	startDate := c.QueryParam("start_date")
 	endDate := c.QueryParam("end_date")
 
+	if startDate == "" {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("start_date query parameter is required (format: YYYY-MM-DD, example: 2024-01-01)"))
+	}
+	if endDate == "" {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("end_date query parameter is required (format: YYYY-MM-DD, example: 2024-12-31)"))
+	}
+
 	req := &dto.GetAttendanceSummaryRequest{
 		UserID:    userID,
 		StartDate: startDate,
 		EndDate:   endDate,
 	}
-	if err := c.Validate(req); err != nil {
-		return err
+
+	// Manual validation since we're using query params instead of JSON body
+	if req.UserID == "" {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("User ID is required"))
+	}
+	if req.StartDate == "" {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("start_date query parameter is required (format: YYYY-MM-DD, example: 2024-01-01)"))
+	}
+	if req.EndDate == "" {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("end_date query parameter is required (format: YYYY-MM-DD, example: 2024-12-31)"))
+	}
+
+	// Additional date format validation
+	if len(req.StartDate) != 10 || req.StartDate[4] != '-' || req.StartDate[7] != '-' {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid start_date format. Use YYYY-MM-DD format (e.g., 2024-01-01)"))
+	}
+	if len(req.EndDate) != 10 || req.EndDate[4] != '-' || req.EndDate[7] != '-' {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid end_date format. Use YYYY-MM-DD format (e.g., 2024-12-31)"))
 	}
 
 	response, err := h.attendanceService.GetAttendanceSummary(req)

@@ -34,7 +34,7 @@ func (h *EmployeeHandler) CreateEmployee(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request format"))
 	}
 	if err := c.Validate(&req); err != nil {
-		return err
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Validation failed: "+err.Error()+". Required fields: user_id, full_name, hire_date (format: YYYY-MM-DD)"))
 	}
 
 	employee, err := h.employeeService.CreateEmployee(&req)
@@ -278,13 +278,17 @@ func (h *EmployeeHandler) UpdateEmploymentStatus(c echo.Context) error {
 	}
 
 	var req struct {
-		Status string `json:"status"`
+		EmploymentStatus string `json:"employment_status" validate:"required,oneof=active terminated on_leave suspended"`
 	}
-	if err := c.Bind(&req); err != nil || req.Status == "" {
-		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Status is required"))
+	if err := c.Bind(&req); err != nil {
+		h.logger.WithError(err).Error("Failed to bind request")
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid request format. Expected: {\"employment_status\": \"active|terminated|on_leave|suspended\"}"))
+	}
+	if err := c.Validate(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Employment status is required and must be one of: active, terminated, on_leave, suspended"))
 	}
 
-	err := h.employeeService.UpdateEmploymentStatus(id, req.Status)
+	err := h.employeeService.UpdateEmploymentStatus(id, req.EmploymentStatus)
 	if err != nil {
 		h.logger.WithError(err).Error("Failed to update employment status")
 		if strings.Contains(err.Error(), "not found") {

@@ -167,6 +167,10 @@ GET  /health
 }
 ```
 
+**Required fields:** `email`, `password`
+**Optional fields:** `employee_data` (object)
+**Note:** If `employee_data` is provided, `full_name` and `hire_date` (format: YYYY-MM-DD) are required
+
 **Login request body:**
 ```json
 {
@@ -209,6 +213,31 @@ GET    /api/v1/employees/manager/:managerId/subordinates — Get subordinates
 
 **Query params for list endpoints:** `?page=1&page_size=10&search=keyword`
 
+**Create employee request:**
+```json
+{
+  "user_id": "user-uuid-here",
+  "full_name": "John Doe",
+  "phone": "08123456789",
+  "department": "Engineering",
+  "position": "Software Developer",
+  "salary": 75000,
+  "hire_date": "2024-01-15",
+  "employment_status": "active",
+  "emergency_contact": "Jane Doe",
+  "emergency_phone": "08987654321",
+  "address": "Jakarta, Indonesia"
+}
+```
+
+**Update employee status request:**
+```json
+{
+  "employment_status": "active"
+}
+```
+**Valid status values:** `active`, `terminated`, `on_leave`, `suspended`
+
 ---
 
 ### Attendance Service
@@ -219,9 +248,225 @@ Tracks clock-in and clock-out records per user.
 POST /api/v1/attendance/clock-in          — Record clock-in
 POST /api/v1/attendance/clock-out         — Record clock-out
 GET  /api/v1/attendance/history/:userId   — Attendance history
-GET  /api/v1/attendance/summary/:userId   — Attendance summary
+GET  /api/v1/attendance/summary/:userId   — Attendance summary (requires date range)
 GET  /health
 ```
+
+**Clock-in request:**
+```json
+{
+  "user_id": "user-uuid-here",
+  "note": "Starting morning shift"
+}
+```
+
+**Clock-out request:**
+```json
+{
+  "attendance_id": "attendance-uuid-here",
+  "note": "Ending shift"
+}
+```
+
+**Attendance history query parameters:**
+- `page` (optional, default: 1)
+- `limit` (optional, default: 10, max: 100)
+
+**Attendance summary query parameters (required):**
+- `start_date` (required, format: YYYY-MM-DD) - example: `2024-01-01`
+- `end_date` (required, format: YYYY-MM-DD) - example: `2024-12-31`
+
+**Example attendance summary request:**
+```bash
+curl "http://localhost:8000/api/v1/attendance/summary/user-uuid-here?start_date=2024-01-01&end_date=2024-12-31" \
+  -H "Authorization: Bearer your-token"
+```
+
+---
+
+## API Usage Examples
+
+### Authentication Examples
+
+**Register a new user with employee profile:**
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe@example.com",
+    "password": "securePassword123",
+    "employee_data": {
+      "full_name": "John Doe",
+      "phone": "08123456789",
+      "department": "Engineering",
+      "position": "Backend Developer",
+      "salary": 8000000,
+      "hire_date": "2024-01-15",
+      "employment_status": "active"
+    }
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "user": {
+      "id": "uuid-here",
+      "email": "john.doe@example.com",
+      "role": "user"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+**Login:**
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe@example.com",
+    "password": "securePassword123"
+  }'
+```
+
+### User Management Examples
+
+**List all users with pagination:**
+```bash
+curl "http://localhost:8000/api/v1/users?page=1&limit=10&search=john" \
+  -H "Authorization: Bearer your-token-here"
+```
+
+**Update user information:**
+```bash
+curl -X PUT http://localhost:8000/api/v1/users/user-uuid-here \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe.updated@example.com",
+    "password": "newSecurePassword123"
+  }'
+```
+
+### Employee Management Examples
+
+**Create employee profile:**
+```bash
+curl -X POST http://localhost:8000/api/v1/employees \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-uuid-here",
+    "full_name": "John Doe",
+    "phone": "08123456789",
+    "department": "Engineering",
+    "position": "Backend Developer",
+    "salary": 8000000,
+    "hire_date": "2024-01-15",
+    "employment_status": "active",
+    "emergency_contact": "Jane Doe",
+    "emergency_phone": "08987654321",
+    "address": "Jakarta, Indonesia"
+  }'
+```
+
+**Update employee status:**
+```bash
+curl -X PATCH http://localhost:8000/api/v1/employees/employee-uuid-here/status \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employment_status": "on_leave"
+  }'
+```
+
+**Get employees by department:**
+```bash
+curl "http://localhost:8000/api/v1/employees/department/Engineering?page=1&page_size=10" \
+  -H "Authorization: Bearer your-token-here"
+```
+
+### Attendance Examples
+
+**Clock-in:**
+```bash
+curl -X POST http://localhost:8000/api/v1/attendance/clock-in \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-uuid-here",
+    "note": "Starting morning shift"
+  }'
+```
+
+**Clock-out:**
+```bash
+curl -X POST http://localhost:8000/api/v1/attendance/clock-out \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attendance_id": "attendance-uuid-here",
+    "note": "Completed work day"
+  }'
+```
+
+**Get attendance history:**
+```bash
+curl "http://localhost:8000/api/v1/attendance/history/user-uuid-here?page=1&limit=10" \
+  -H "Authorization: Bearer your-token-here"
+```
+
+**Get attendance summary (with required date parameters):**
+```bash
+curl "http://localhost:8000/api/v1/attendance/summary/user-uuid-here?start_date=2024-01-01&end_date=2024-12-31" \
+  -H "Authorization: Bearer your-token-here"
+```
+
+### Error Response Examples
+
+**Validation error response:**
+```json
+{
+  "success": false,
+  "message": "Validation failed: user_id is required. Required fields: user_id, full_name, hire_date (format: YYYY-MM-DD)"
+}
+```
+
+**Authentication error response:**
+```json
+{
+  "success": false,
+  "message": "Invalid or expired token"
+}
+```
+
+**Not found error response:**
+```json
+{
+  "success": false,
+  "message": "Employee not found"
+}
+```
+
+---
+
+## Error Messages and Solutions
+
+### Common Error Messages:
+
+| Error Message | Cause | Solution |
+|---------------|-------|----------|
+| "Status is required" | Employee status update missing employment_status field | Include `{"employment_status": "active|terminated|on_leave|suspended"}` in request body |
+| "start_date query parameter is required" | Attendance summary missing date parameters | Add `?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` to URL |
+| "Invalid date format" | Date not in YYYY-MM-DD format | Use format like `2024-01-15` for dates |
+| "User already exists" | Email already registered | Use a different email or login with existing account |
+| "Invalid email or password" | Wrong credentials | Check email and password, or register new account |
+| "Employee not found" | No employee profile for user | Create employee profile first |
+| "User already has an active clock-in" | Attempting to clock-in while already clocked-in | Clock-out first before new clock-in |
 
 ---
 
