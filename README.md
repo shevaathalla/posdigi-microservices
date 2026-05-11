@@ -861,6 +861,67 @@ posdigi-microservices/
 | `make db-backup` | Backup the PostgreSQL database |
 | `make clean` | Remove build artifacts |
 
+## 🧪 Testing
+
+The project includes comprehensive unit and integration tests for all services.
+
+**📖 Complete Testing Guide:** [TESTING.md](TESTING.md)
+
+### Quick Test Commands:
+```bash
+# Run all tests
+make test-all
+
+# Run specific service tests
+make test-auth        # Auth Service tests
+make test-user        # User Service tests
+make test-attendance  # Attendance Service tests
+make test-gateway     # Gateway Service tests
+
+# Run tests with coverage reports
+make test-coverage
+
+# Run tests with race detection
+make test-race
+
+# Run benchmark tests
+make test-bench
+```
+
+### Test Structure:
+```
+services/
+├── auth/tests/
+│   ├── dto_validation_test.go
+│   ├── integration_test.go
+├── user/tests/
+│   └── integration_test.go
+├── attendance/tests/
+│   └── integration_test.go
+├── gateway/tests/
+│   └── integration_test.go
+└── shared/testing/
+    └── test_helpers.go
+```
+
+### Test Coverage:
+- ✅ **DTO Validation Tests** - Email formats, password requirements, field validation
+- ✅ **Integration Tests** - HTTP endpoints, request/response handling, error cases
+- ✅ **Middleware Tests** - Authentication, rate limiting, CORS, request ID generation
+- ✅ **Query Parameter Tests** - Pagination, search, date ranges, filtering
+
+### Running Individual Tests:
+```bash
+# Run specific test file
+cd services/auth && go test -v ./tests/integration_test.go
+
+# Run specific test function
+cd services/user && go test -v ./tests/... -run TestRoute_CreateUser
+
+# Run tests with verbose output
+go test -v ./tests/...
+```
+
 ### MongoDB Commands:
 ```bash
 # MongoDB shell

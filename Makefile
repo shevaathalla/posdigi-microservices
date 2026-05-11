@@ -250,22 +250,55 @@ setup: ## Full setup for reviewers (docker + migrations)
 .PHONY: test-auth
 test-auth: ## Run auth service tests
 	@echo "Running Auth Service tests..."
-	@cd services/auth && go test -v ./...
+	@cd services/auth && go test -v ./tests/...
 
 .PHONY: test-user
 test-user: ## Run user service tests
 	@echo "Running User Service tests..."
-	@cd services/user && go test -v ./...
+	@cd services/user && go test -v ./tests/...
 
 .PHONY: test-attendance
 test-attendance: ## Run attendance service tests
 	@echo "Running Attendance Service tests..."
-	@cd services/attendance && go test -v ./...
+	@cd services/attendance && go test -v ./tests/...
+
+.PHONY: test-gateway
+test-gateway: ## Run gateway service tests
+	@echo "Running Gateway Service tests..."
+	@cd services/gateway && go test -v ./tests/...
 
 .PHONY: test-all
 test-all: ## Run all tests
 	@echo "Running all tests..."
-	@make test-auth test-user test-attendance
+	@make test-auth test-user test-attendance test-gateway
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage report
+	@echo "Running tests with coverage..."
+	@echo "Auth Service Coverage:"
+	@cd services/auth && go test -v -coverprofile=coverage.out ./tests/... && go tool cover -html=coverage.out
+	@echo "User Service Coverage:"
+	@cd services/user && go test -v -coverprofile=coverage.out ./tests/... && go tool cover -html=coverage.out
+	@echo "Attendance Service Coverage:"
+	@cd services/attendance && go test -v -coverprofile=coverage.out ./tests/... && go tool cover -html=coverage.out
+	@echo "Gateway Service Coverage:"
+	@cd services/gateway && go test -v -coverprofile=coverage.out ./tests/... && go tool cover -html=coverage.out
+
+.PHONY: test-bench
+test-bench: ## Run benchmark tests
+	@echo "Running benchmark tests..."
+	@cd services/auth && go test -bench=. -benchmem ./tests/...
+	@cd services/user && go test -bench=. -benchmem ./tests/...
+	@cd services/attendance && go test -bench=. -benchmem ./tests/...
+	@cd services/gateway && go test -bench=. -benchmem ./tests/...
+
+.PHONY: test-race
+test-race: ## Run tests with race detection
+	@echo "Running tests with race detection..."
+	@cd services/auth && go test -race ./tests/...
+	@cd services/user && go test -race ./tests/...
+	@cd services/attendance && go test -race ./tests/...
+	@cd services/gateway && go test -race ./tests/...
 
 ##@ Utilities
 
